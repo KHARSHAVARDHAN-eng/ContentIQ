@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# SQLite
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Project Specific
+backend/qdrant_data/
+backend/uploads/*
+!backend/uploads/2_offerLetter.pdf
+!backend/uploads/2_DocumentIQ_Test_Story.pdf
+
+# Node / Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Temporary local directories
+test_qdrant_db/
+uploads/
