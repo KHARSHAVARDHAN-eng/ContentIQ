@@ -1,0 +1,68 @@
+import numpy as np
+import easyocr
+import pytesseract
+from PIL import Image
+
+class OCRService:
+    def __init__(self):
+        self._reader = None
+
+    def get_reader(self) -> easyocr.Reader:
+        if self._reader is None:
+            # Initialize EasyOCR reader for English language on CPU
+            print("Initializing EasyOCR reader (CPU mode)...")
+            self._reader = easyocr.Reader(['en'], gpu=False)
+        return self._reader
+
+    def extract_text_from_image(self, pil_image: Image.Image) -> tuple[str, float]:
+        """
+        Extracts text content and average confidence from a PIL Image.
+        First tries EasyOCR, then falls back to Tesseract if EasyOCR fails.
+        Returns a tuple of (extracted_text, confidence_score) where confidence_score is between 0.0 and 1.0.
+        """
+        # Ensure image is in RGB format
+        if pil_image.mode != "RGB":
+            pil_image = pil_image.convert("RGB")
+
+        try:
+            # Convert PIL image to numpy array for EasyOCR
+            img_np = np.array(pil_image)
+            reader = self.get_reader()
+            results = reader.readtext(img_np)
+
+            if results:
+                texts = []
+                confidences = []
+                for bbox, text, conf in results:
+                    text_str = text.strip() if text else ""
+                    if text_str:
+                        texts.append(text_str)
+                        confidences.append(float(conf))
+                
+                extracted_text = " ".join(texts)
+                avg_confidence = float(np.mean(confidences)) if confidences else 1.0
+                return extracted_text, avg_confidence
+            else:
+                return "", 1.0
+
+        except Exception as e:
+            print(f"EasyOCR extraction failed: {e}. Falling back to Tesseract...")
+            try:
+                # Fallback to Tesseract
+                extracted_text = pytesseract.image_to_string(pil_image).strip()
+                
+                # Get confidence scores using image_to_data
+                data = pytesseract.image_to_data(pil_image, output_type=pytesseract.Output.DICT)
+                confidences = []
+                if "conf" in data:
+                    confidences = [float(c) for c in data["conf"] if c != -1]
+                
+                # Pytesseract returns scores 0-100, normalize to 0.0-1.0
+                avg_confidence = (float(np.mean(confidences)) / 100.0) if confidences else 0.5
+                return extracted_text, avg_confidence
+            except Exception as t_err:
+                print(f"Tesseract fallback extraction failed: {t_err}")
+                # Return empty result if all engines failed
+                return "", 0.0
+
+ocr_service = OCRService()

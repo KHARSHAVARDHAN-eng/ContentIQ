@@ -1,0 +1,60 @@
+services:
+  # 1. Qdrant Vector Database
+  - type: pserv
+    name: documentiq-qdrant
+    env: docker
+    dockerfile: ./backend/Dockerfile.qdrant # Or custom if needed, otherwise use image directly
+    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault # placeholder/repo url
+    image: qdrant/qdrant:latest
+    disk:
+      name: qdrant-storage
+      mountPath: /qdrant/storage
+      sizeGB: 10
+    routes:
+      - path: /
+        port: 6333
+
+  # 2. FastAPI Python Backend
+  - type: web
+    name: documentiq-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: documentiq-db
+          property: connectionString
+      - key: QDRANT_HOST
+        fromService:
+          name: documentiq-qdrant
+          value: host
+      - key: QDRANT_PORT
+        value: 6333
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false # User will input their key in Render UI
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+
+  # 3. React Frontend (Static Site)
+  - type: web
+    name: documentiq-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    publishPath: ./dist
+    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: documentiq-backend
+          property: url
+
+databases:
+  # 4. PostgreSQL Database Instance
+  - name: documentiq-db
+    databaseName: documentiq
+    user: postgres
+    plan: free

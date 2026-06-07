@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import DocumentDetails from './pages/DocumentDetails';
 import SearchPlayground from './pages/SearchPlayground';
 import Chat from './pages/Chat';
+import EvaluationDashboard from './pages/EvaluationDashboard';
 
 
 
@@ -64,8 +65,17 @@ function App() {
             }
           />
 
+          <Route
+            path="/evaluations"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EvaluationDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
-          
           {/* Fallback route */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

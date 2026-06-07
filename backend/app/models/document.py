@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -11,6 +11,7 @@ class Document(Base):
     size = Column(String, nullable=False)
     path = Column(String, nullable=False)
     status = Column(String, default="Completed")
+    ocr_confidence = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

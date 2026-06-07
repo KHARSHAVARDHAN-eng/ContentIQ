@@ -5,6 +5,7 @@ class DocumentBase(BaseModel):
     name: str
     size: str
     status: str
+    ocr_confidence: float | None = None
 
 class DocumentCreate(DocumentBase):
     path: str
@@ -23,6 +24,7 @@ class DocumentPreviewResponse(BaseModel):
     size: str
     status: str
     page_count: int
+    ocr_confidence: float | None = None
     created_at: datetime
     extracted_text_preview: str
 

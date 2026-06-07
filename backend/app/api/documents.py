@@ -19,7 +19,7 @@ from app.schemas.document import DocumentResponse, DocumentPreviewResponse
 from app.schemas.document_chunk import DocumentChunksOverviewResponse
 from app.schemas.embedding_stats import EmbeddingStatsResponse
 from app.core.config import settings
-from app.services.document_processor import process_document_task
+from app.services.ocr_processor import ocr_document_processor_task
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ async def upload_document(
     db.refresh(db_doc)
     
     # Trigger asynchronous background document extraction pipeline
-    background_tasks.add_task(process_document_task, db_doc.id)
+    background_tasks.add_task(ocr_document_processor_task, db_doc.id)
     
     return db_doc
 
@@ -125,6 +125,7 @@ def get_document_preview(
         "size": doc.size,
         "status": doc.status,
         "page_count": page_count,
+        "ocr_confidence": doc.ocr_confidence,
         "created_at": doc.created_at,
         "extracted_text_preview": full_preview or "No text extracted."
     }
