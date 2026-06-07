@@ -1,3 +1,8 @@
+# ==========================================
+# PRODUCTION LOCKED - STABLE RAG V1 CORE
+# DO NOT MODIFY without explicit regression verification
+# ==========================================
+
 from sentence_transformers import SentenceTransformer
 from app.core.config import settings
 from typing import List

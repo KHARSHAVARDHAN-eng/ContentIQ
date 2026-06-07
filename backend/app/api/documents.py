@@ -1,3 +1,8 @@
+# ==========================================
+# PRODUCTION LOCKED - STABLE RAG V1 CORE
+# DO NOT MODIFY without explicit regression verification
+# ==========================================
+
 import os
 import shutil
 from typing import List

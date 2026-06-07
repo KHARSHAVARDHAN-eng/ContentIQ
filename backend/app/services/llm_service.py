@@ -1,3 +1,8 @@
+# ==========================================
+# PRODUCTION LOCKED - STABLE RAG V1 CORE
+# DO NOT MODIFY without explicit regression verification
+# ==========================================
+
 import google.generativeai as genai
 from typing import List, Dict, Any
 from app.core.config import settings

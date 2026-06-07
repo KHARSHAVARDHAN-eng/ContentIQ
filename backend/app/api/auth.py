@@ -1,3 +1,8 @@
+# ==========================================
+# PRODUCTION LOCKED - STABLE RAG V1 CORE
+# DO NOT MODIFY without explicit regression verification
+# ==========================================
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
