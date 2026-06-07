@@ -56,6 +56,10 @@ class LLMService:
             }
 
         try:
+            import time
+            import logging
+            logger = logging.getLogger("app.services.llm_service")
+            
             # Configure genai with key
             genai.configure(api_key=api_key)
             
@@ -74,13 +78,32 @@ class LLMService:
             
             prompt = self.build_prompt(question, context_chunks)
             
-            # Request response from model
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.0,  # Minimize creativity to enforce grounding
-                )
-            )
+            # Request response from model with retry and exponential backoff
+            max_retries = 3
+            backoff_factor = 2
+            initial_delay = 1.0 # seconds
+            
+            response = None
+            last_exception = None
+            
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(
+                        prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.0,  # Minimize creativity to enforce grounding
+                        )
+                    )
+                    break
+                except Exception as ex:
+                    last_exception = ex
+                    logger.warning(f"Gemini API generation attempt {attempt + 1} failed: {ex}. Retrying...")
+                    if attempt < max_retries - 1:
+                        sleep_time = initial_delay * (backoff_factor ** attempt)
+                        time.sleep(sleep_time)
+            
+            if response is None:
+                raise last_exception
             
             answer = response.text.strip() if response.text else "I could not find sufficient information in the uploaded documents."
             sources = self._compile_sources(context_chunks)
@@ -93,11 +116,38 @@ class LLMService:
             }
             
         except Exception as e:
-            print(f"Gemini generation error: {e}")
-            # Fallback to local mock on failure to avoid API down issues
-            mock_answer = f"[LLM Call Failed: {e}] fallback: " + self._generate_mock_answer(question, context_chunks)
+            # Backend logging for Gemini failures
+            import logging
+            logger = logging.getLogger("app.services.llm_service")
+            logger.error(f"Gemini generation error: {e}", exc_info=True)
+            
+            err_msg = str(e).lower()
+            is_quota_or_timeout = (
+                "429" in err_msg or
+                "quota" in err_msg or
+                "exhausted" in err_msg or
+                "limit" in err_msg or
+                "timeout" in err_msg or
+                "deadline" in err_msg or
+                "rate" in err_msg or
+                "temporarily unavailable" in err_msg
+            )
+            
+            if is_quota_or_timeout:
+                friendly_message = "AI generation is temporarily unavailable due to API quota limits. Relevant document sources are shown below."
+            else:
+                friendly_message = "AI generation is temporarily unavailable. Relevant document sources are shown below."
+            
+            # Fallback mode that returns top retrieved chunks formatted cleanly
+            fallback_answer = friendly_message + "\n\n"
+            for idx, chunk in enumerate(context_chunks[:3]):
+                doc_name = chunk.get("document_name", "Unknown")
+                page_num = chunk.get("page_number", "N/A")
+                text = chunk.get("chunk_text", "").strip()
+                fallback_answer += f"[{idx + 1}] Source: {doc_name} (Page {page_num}):\n{text}\n\n"
+            
             return {
-                "answer": mock_answer,
+                "answer": fallback_answer,
                 "sources": self._compile_sources(context_chunks),
                 "confidence": self._calculate_confidence(context_chunks)
             }

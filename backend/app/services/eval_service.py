@@ -75,6 +75,10 @@ class EvaluationService:
             return 0.0, 0.0
 
         try:
+            import time
+            import logging
+            logger = logging.getLogger("app.services.eval_service")
+            
             genai.configure(api_key=api_key)
             system_instruction = (
                 "You are an evaluator for a RAG system.\n"
@@ -95,12 +99,32 @@ class EvaluationService:
                 f"Generated Answer:\n{answer}\n"
             )
             
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.0
-                )
-            )
+            # Request response from model with retry and exponential backoff
+            max_retries = 3
+            backoff_factor = 2
+            initial_delay = 1.0 # seconds
+            
+            response = None
+            last_exception = None
+            
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(
+                        prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.0
+                        )
+                    )
+                    break
+                except Exception as ex:
+                    last_exception = ex
+                    logger.warning(f"Gemini API evaluation attempt {attempt + 1} failed: {ex}. Retrying...")
+                    if attempt < max_retries - 1:
+                        sleep_time = initial_delay * (backoff_factor ** attempt)
+                        time.sleep(sleep_time)
+            
+            if response is None:
+                raise last_exception
             
             text = response.text.strip()
             # Clean up potential markdown formatting block
@@ -116,7 +140,9 @@ class EvaluationService:
             # Clamp scores between 0.0 and 1.0
             return max(0.0, min(1.0, faithfulness)), max(0.0, min(1.0, relevance))
         except Exception as e:
-            print(f"Gemini evaluation error: {e}")
+            import logging
+            logger = logging.getLogger("app.services.eval_service")
+            logger.error(f"Gemini evaluation error: {e}", exc_info=True)
             return self._compute_fallback_scores(query, answer, context)
 
     def _compute_fallback_scores(self, query: str, answer: str, context: str) -> Tuple[float, float]:

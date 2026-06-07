@@ -119,7 +119,7 @@ class DocumentIQRegressionTest(unittest.TestCase):
         chat_resp = requests.post(f"{BASE_URL}/chat", json={"question": "What is the position offered and duration of internship?"}, headers=headers_u2)
         self.assertEqual(chat_resp.status_code, 200)
         chat_data = chat_resp.json()
-        if "LLM Call Failed" in chat_data["answer"]:
+        if "LLM Call Failed" in chat_data["answer"] or "temporarily unavailable" in chat_data["answer"]:
             self.assertIn("offerLetter.pdf", chat_data["answer"])
             self.assertEqual(chat_data["citations"][0]["document_name"], "offerLetter.pdf")
         else:
@@ -146,7 +146,7 @@ class DocumentIQRegressionTest(unittest.TestCase):
         chat_resp = requests.post(f"{BASE_URL}/chat", json={"question": "What is the name of the brass telescope Raman Iyer used?"}, headers=headers_u2)
         self.assertEqual(chat_resp.status_code, 200)
         chat_data = chat_resp.json()
-        if "LLM Call Failed" in chat_data["answer"]:
+        if "LLM Call Failed" in chat_data["answer"] or "temporarily unavailable" in chat_data["answer"]:
             self.assertIn("DocumentIQ_Test_Story.pdf", chat_data["answer"])
             self.assertEqual(chat_data["citations"][0]["document_name"], "DocumentIQ_Test_Story.pdf")
         else:
