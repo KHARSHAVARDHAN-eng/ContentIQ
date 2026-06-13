@@ -78,19 +78,18 @@ Before starting, ensure you have active accounts on the following platforms:
 2. Copy the HTTPS endpoint (e.g. `https://xxx.aws.qdrant.io:6333`).
 3. Generate an API Key and copy it.
 
-### Step 4: Deploy Database & Backend to Render
-1. Go to **Render Dashboard** -> **Blueprints**.
-2. Connect your GitHub repository. Render will automatically read the `render.yaml` file.
-3. Configure the required environment variables when prompted in the Render UI (Gemini API Key, Qdrant URL, S3 credentials, etc.).
-4. Click **Apply**. Render will:
-   - Create a managed PostgreSQL database.
-   - Deploy Qdrant container as a private service.
-   - Build and start the FastAPI Python server.
-5. Copy the public URL of the backend (e.g., `https://documentiq-backend.onrender.com`).
+### Step 4: Deploy Database & Backend to Railway
+1. Go to **Railway Console** -> **New Project** -> **Deploy from GitHub**.
+2. Connect your GitHub repository and select the `stable-redesign-v2` branch.
+3. Once the service is added, go to **Settings** -> **Root Directory** and set it to `/backend`.
+4. Click **+ New** in your project canvas and select **Database** -> **Add PostgreSQL**. Railway will instantly provision a PostgreSQL database.
+5. Go to your backend service -> **Variables** tab, and add the required environment variables (Gemini API Key, Qdrant URL, Qdrant API Key, S3 credentials, etc.).
+6. Refer your database connection by adding a variable `DATABASE_URL` and referencing your database (e.g., `${{Postgres.DATABASE_URL}}`).
+7. Go to **Settings** -> **Public Networking** and click **Generate Domain** to obtain the public backend URL (e.g., `https://your-backend.up.railway.app`).
 
 ### Step 5: Migrate Data from SQLite to PostgreSQL
-Once the Render backend and PostgreSQL database are online:
-1. Retrieve the PostgreSQL `connectionString` (DATABASE_URL) from the database settings page in Render.
+Once the Railway backend and PostgreSQL database are online:
+1. Retrieve the PostgreSQL external connection string from your Railway PostgreSQL service.
 2. Run the migration script locally to sync all existing user accounts, documents, study tools, chat logs, and study packs:
    ```bash
    cd backend
@@ -105,7 +104,7 @@ Once the Render backend and PostgreSQL database are online:
 4. Set the **Framework Preset** to **Vite**.
 5. Add the environment variable:
    - Key: `VITE_API_URL`
-   - Value: `https://your-backend.onrender.com/api`
+   - Value: `https://your-backend.up.railway.app/api`
 6. Click **Deploy**. Vercel will build and serve the application with secure SSL (HTTPS).
 
 ---
