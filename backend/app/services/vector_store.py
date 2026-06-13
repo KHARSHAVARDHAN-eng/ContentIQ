@@ -17,9 +17,16 @@ class VectorStoreService:
     def client(self) -> QdrantClient:
         if self._client is None:
             # Determine connection mode based on settings
-            if settings.QDRANT_HOST:
+            if settings.QDRANT_URL:
+                print(f"Connecting to Qdrant Cloud at {settings.QDRANT_URL}...")
+                self._client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
+            elif settings.QDRANT_HOST:
                 print(f"Connecting to Qdrant server at http://{settings.QDRANT_HOST}:{settings.QDRANT_PORT}...")
-                self._client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+                self._client = QdrantClient(
+                    host=settings.QDRANT_HOST,
+                    port=settings.QDRANT_PORT,
+                    api_key=settings.QDRANT_API_KEY
+                )
             elif settings.QDRANT_PATH:
                 # Resolve relative paths relative to current backend workspace
                 resolved_path = os.path.abspath(settings.QDRANT_PATH)

@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, users, documents, search, chat, evaluations, conversations
+from app.api import auth, users, documents, search, chat, evaluations, conversations, study_tools
 from app.models.user import User
 
 from app.models.document import Document
@@ -13,6 +13,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.chunk_embedding import ChunkEmbedding
 from app.models.rag_evaluation import RAGEvaluation
 from app.models.chat_history import ChatSession, ChatMessage
+from app.models.study_tool import FlashCardDeck, FlashCard, StudyPack
 
 # Automatically create database tables (useful for fast setup, Docker run, local testing)
 try:
@@ -40,10 +41,14 @@ app = FastAPI(
 )
 
 # Configure CORS
+origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+if "*" in origins:
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=True if "*" not in origins else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -200,6 +205,7 @@ app.include_router(search.router, prefix=f"{settings.API_V1_STR}", tags=["search
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}", tags=["chat"])
 app.include_router(evaluations.router, prefix=f"{settings.API_V1_STR}/evaluations", tags=["evaluations"])
 app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
+app.include_router(study_tools.router, prefix=f"{settings.API_V1_STR}/study-tools", tags=["study-tools"])
 
 @app.get("/")
 def root():

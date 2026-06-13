@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -10,17 +11,20 @@ import DocumentDetails from './pages/DocumentDetails';
 import SearchPlayground from './pages/SearchPlayground';
 import Chat from './pages/Chat';
 import EvaluationDashboard from './pages/EvaluationDashboard';
-
-
+import StudyTools from './pages/StudyTools';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <Routes>
+          {/* Public Landing Page */}
+          <Route path="/" element={<Landing />} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
+          {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -76,8 +80,19 @@ function App() {
             }
           />
 
+          <Route
+            path="/study-tools"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StudyTools />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </Router>

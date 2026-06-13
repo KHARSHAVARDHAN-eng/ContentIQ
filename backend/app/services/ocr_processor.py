@@ -1,7 +1,9 @@
 import os
+import io
 import traceback
 import pdfplumber
 from PIL import Image
+from app.services.storage_service import storage_service
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.document import Document
@@ -22,9 +24,11 @@ def ocr_document_processor_task(document_id: int):
             print(f"Document {document_id} not found in database.")
             return
 
-        file_path = doc.path
-        if not os.path.exists(file_path):
-            print(f"File not found at physical path: {file_path}")
+        # Download file bytes from storage_service
+        try:
+            file_bytes = storage_service.download_file(doc.path)
+        except Exception as e:
+            print(f"Error downloading file from storage for OCR: {e}")
             doc.status = "FAILED"
             db.commit()
             return
@@ -43,7 +47,7 @@ def ocr_document_processor_task(document_id: int):
             # Let's inspect the PDF text content first
             total_text_length = 0
             try:
-                with pdfplumber.open(file_path) as pdf:
+                with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                     for page in pdf.pages:
                         page_text = page.extract_text()
                         if page_text:
@@ -88,7 +92,7 @@ def ocr_document_processor_task(document_id: int):
         if is_image:
             # Single page image processing
             try:
-                with Image.open(file_path) as img:
+                with Image.open(io.BytesIO(file_bytes)) as img:
                     extracted_text, confidence = ocr_service.extract_text_from_image(img)
                     
                     db_page = DocumentPage(
@@ -106,7 +110,7 @@ def ocr_document_processor_task(document_id: int):
         elif is_pdf:
             # PDF rasterization and OCR processing page-by-page
             try:
-                with pdfplumber.open(file_path) as pdf:
+                with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                     for idx, page in enumerate(pdf.pages):
                         # Convert PDF page to PIL Image using pdfplumber's PageImage original PIL property with higher resolution (150 DPI)
                         page_image = page.to_image(resolution=150)

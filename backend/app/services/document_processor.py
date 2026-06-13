@@ -39,9 +39,13 @@ def process_document_task(document_id: int):
         db.query(DocumentPage).filter(DocumentPage.document_id == document_id).delete(synchronize_session=False)
         db.commit()
 
-        file_path = doc.path
-        if not os.path.exists(file_path):
-            print(f"File not found at physical path: {file_path}")
+        # Use storage_service to get file bytes
+        try:
+            import io
+            from app.services.storage_service import storage_service
+            file_bytes = storage_service.download_file(doc.path)
+        except Exception as e:
+            print(f"Error downloading file from storage: {e}")
             doc.status = "FAILED"
             db.commit()
             return
@@ -50,7 +54,7 @@ def process_document_task(document_id: int):
         pages_to_insert = []
         
         if ext == ".pdf":
-            with pdfplumber.open(file_path) as pdf:
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 for idx, page in enumerate(pdf.pages):
                     text = page.extract_text()
                     text_content = text.strip() if text else "[Empty Page]"
@@ -65,7 +69,7 @@ def process_document_task(document_id: int):
                     pages_to_insert.append(db_page)
                     
         elif ext == ".docx":
-            word_doc = docx.Document(file_path)
+            word_doc = docx.Document(io.BytesIO(file_bytes))
             full_text = []
             for para in word_doc.paragraphs:
                 full_text.append(para.text)
@@ -89,11 +93,9 @@ def process_document_task(document_id: int):
         else:
             # Plain text files
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text_content = f.read().strip()
+                text_content = file_bytes.decode("utf-8").strip()
             except UnicodeDecodeError:
-                with open(file_path, "r", encoding="latin-1") as f:
-                    text_content = f.read().strip()
+                text_content = file_bytes.decode("latin-1").strip()
 
             if not text_content:
                 text_content = "[Empty Document]"

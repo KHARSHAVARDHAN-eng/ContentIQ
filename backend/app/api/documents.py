@@ -20,6 +20,7 @@ from app.schemas.document_chunk import DocumentChunksOverviewResponse
 from app.schemas.embedding_stats import EmbeddingStatsResponse
 from app.core.config import settings
 from app.services.ocr_processor import ocr_document_processor_task
+from app.services.storage_service import storage_service
 
 router = APIRouter()
 
@@ -42,20 +43,18 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Use clean path name preventing file collisions
-    file_path = os.path.join(UPLOAD_DIR, f"{current_user.id}_{file.filename}")
-    
     try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file_content = await file.read()
+        filename = f"{current_user.id}_{file.filename}"
+        path = storage_service.upload_file(file_content, filename, file.content_type or "application/pdf")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not save file to disk: {str(e)}"
+            detail=f"Could not save file to storage: {str(e)}"
         )
     
     try:
-        size_bytes = os.path.getsize(file_path)
+        size_bytes = len(file_content)
         formatted_size = format_file_size(size_bytes)
     except Exception:
         formatted_size = "Unknown"
@@ -63,7 +62,7 @@ async def upload_document(
     db_doc = Document(
         name=file.filename,
         size=formatted_size,
-        path=file_path,
+        path=path,
         status="UPLOADED",
         user_id=current_user.id
     )
@@ -202,3 +201,38 @@ def get_document_embedding_stats(
         "model_name": settings.EMBEDDING_MODEL_NAME,
         "vector_dimension": vector_dimension
     }
+
+@router.delete("/{document_id}", status_code=status.HTTP_200_OK)
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    doc = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or access denied."
+        )
+
+    # 1. Delete Qdrant vectors
+    try:
+        from app.services.vector_store import vector_store
+        vector_store.delete_document_vectors(doc.id)
+    except Exception as e:
+        print(f"Error deleting vectors from Qdrant: {e}")
+
+    # 2. Clean up physical file from storage
+    if doc.path:
+        storage_service.delete_file(doc.path)
+
+    # 3. Delete from database (cascades to pages, chunks, embeddings)
+    db.delete(doc)
+    db.commit()
+
+    return {"success": True, "message": "Document deleted successfully."}
+
