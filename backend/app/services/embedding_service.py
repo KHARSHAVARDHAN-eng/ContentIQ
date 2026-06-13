@@ -1,9 +1,3 @@
-# ==========================================
-# PRODUCTION LOCKED - STABLE RAG V1 CORE
-# DO NOT MODIFY without explicit regression verification
-# ==========================================
-
-from sentence_transformers import SentenceTransformer
 from app.core.config import settings
 from typing import List
 
@@ -11,8 +5,9 @@ class EmbeddingService:
     _model = None
 
     @classmethod
-    def get_model(cls) -> SentenceTransformer:
+    def get_model(cls) -> "SentenceTransformer":
         if cls._model is None:
+            from sentence_transformers import SentenceTransformer
             print(f"Initializing Embedding Model: {settings.EMBEDDING_MODEL_NAME}...")
             cls._model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
             print("Embedding Model Loaded Successfully.")
