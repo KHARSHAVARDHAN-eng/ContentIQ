@@ -1,14 +1,13 @@
 import numpy as np
-import easyocr
-import pytesseract
 from PIL import Image
 
 class OCRService:
     def __init__(self):
         self._reader = None
 
-    def get_reader(self) -> easyocr.Reader:
+    def get_reader(self):
         if self._reader is None:
+            import easyocr
             # Initialize EasyOCR reader for English language on CPU
             print("Initializing EasyOCR reader (CPU mode)...")
             self._reader = easyocr.Reader(['en'], gpu=False)
@@ -48,6 +47,7 @@ class OCRService:
         except Exception as e:
             print(f"EasyOCR extraction failed: {e}. Falling back to Tesseract...")
             try:
+                import pytesseract
                 # Fallback to Tesseract
                 extracted_text = pytesseract.image_to_string(pil_image).strip()
                 

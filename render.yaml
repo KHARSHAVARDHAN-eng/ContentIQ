@@ -1,10 +1,9 @@
 services:
-  # 1. Qdrant Vector Database
+  # 1. Qdrant Vector Database (Self-hosted Fallback - Optional if using Qdrant Cloud)
   - type: pserv
     name: documentiq-qdrant
     env: docker
     dockerfile: ./backend/Dockerfile.qdrant # Or custom if needed, otherwise use image directly
-    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault # placeholder/repo url
     image: qdrant/qdrant:latest
     disk:
       name: qdrant-storage
@@ -18,9 +17,9 @@ services:
   - type: web
     name: documentiq-backend
     env: python
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -41,7 +40,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false # User will input their key in Render UI
       - key: GEMINI_MODEL
-        value: gemini-3.5-flash
+        value: gemini-1.5-flash # Corrected to standard model name
       - key: STORAGE_TYPE
         value: local
       - key: AWS_ACCESS_KEY_ID
@@ -57,13 +56,13 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false
 
-  # 3. React Frontend (Static Site)
+  # 3. React Frontend (Static Site - Fallback/Alternative to Vercel)
   - type: web
     name: documentiq-frontend
     env: static
+    rootDir: frontend
     buildCommand: npm install && npm run build
     publishPath: ./dist
-    repo: https://github.com/KHARSHAVARDHAN-eng/CodeVault
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -76,3 +75,4 @@ databases:
     databaseName: documentiq
     user: postgres
     plan: free
+
