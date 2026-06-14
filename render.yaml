@@ -2,8 +2,7 @@ services:
   # 1. Qdrant Vector Database (Self-hosted Fallback - Optional if using Qdrant Cloud)
   - type: pserv
     name: documentiq-qdrant
-    env: docker
-    dockerfile: ./backend/Dockerfile.qdrant # Or custom if needed, otherwise use image directly
+    runtime: image
     image: qdrant/qdrant:latest
     disk:
       name: qdrant-storage

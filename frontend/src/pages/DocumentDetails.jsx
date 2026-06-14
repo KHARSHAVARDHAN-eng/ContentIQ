@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ArrowLeft, FileText, Calendar, HardDrive, Cpu, AlertTriangle, CheckCircle, Clock, Sparkles, Layers, ListOrdered, Binary, Copy, Check, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { API_URL } from '../config';
 
 const DocumentDetails = () => {
   const { id } = useParams();

@@ -77,7 +77,75 @@ def migrate(sqlite_url: str, postgres_url: str):
             postgres_db.commit()
             print(f"Successfully migrated {count}/{len(sqlite_rows)} records for {model.__name__}.")
             
-        print("\nDatabase migration finished successfully!")
+        # ----------------------------------------------------
+        # S3 / QDRANT RE-INDEX MIGRATION
+        # ----------------------------------------------------
+        # Check if STORAGE_TYPE is s3. If so, we migrate files to S3
+        is_s3 = settings.STORAGE_TYPE.lower() == "s3"
+        postgres_docs = postgres_db.query(Document).all()
+        
+        if is_s3:
+            print("\nProduction STORAGE_TYPE=s3 configured. Syncing local files to S3 bucket...")
+            from app.services.storage_service import storage_service
+            
+            for doc in postgres_docs:
+                if not doc.path:
+                    continue
+                if doc.path.startswith("http://") or doc.path.startswith("https://"):
+                    print(f"Document #{doc.id} ('{doc.name}') already has a remote path: {doc.path}. Skipping upload.")
+                    continue
+                
+                filename = os.path.basename(doc.path)
+                # Find local path
+                local_path = doc.path
+                if not os.path.exists(local_path):
+                    # Look in backend/uploads/ relative to the script location
+                    uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+                    alt_path = os.path.join(uploads_dir, filename)
+                    if os.path.exists(alt_path):
+                        local_path = alt_path
+                    else:
+                        print(f"WARNING: Local file not found for document #{doc.id} ('{doc.name}') at {doc.path} or {alt_path}.")
+                        continue
+                
+                print(f"Uploading '{filename}' to production S3 storage...")
+                try:
+                    with open(local_path, "rb") as f:
+                        file_bytes = f.read()
+                    
+                    ext = os.path.splitext(filename)[1].lower()
+                    content_type = "application/pdf"
+                    if ext == ".docx":
+                        content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    elif ext == ".txt":
+                        content_type = "text/plain"
+                    elif ext in [".jpg", ".jpeg"]:
+                        content_type = "image/jpeg"
+                    elif ext == ".png":
+                        content_type = "image/png"
+                        
+                    remote_url = storage_service.upload_file(file_bytes, filename, content_type)
+                    print(f"Uploaded successfully. URL: {remote_url}")
+                    
+                    # Update database entry
+                    doc.path = remote_url
+                except Exception as upload_err:
+                    print(f"ERROR: S3 upload failed for '{filename}': {upload_err}")
+            
+            postgres_db.commit()
+            
+        print("\nRe-indexing documents in production Qdrant vector database...")
+        from app.services.document_processor import process_document_task
+        
+        for doc in postgres_docs:
+            print(f"Re-indexing Document #{doc.id} ('{doc.name}')...")
+            try:
+                process_document_task(doc.id)
+                print(f"Successfully re-indexed Document #{doc.id}.")
+            except Exception as task_err:
+                print(f"ERROR: Failed to re-index Document #{doc.id}: {task_err}")
+                
+        print("\nDatabase migration and vector re-indexing finished successfully!")
         
     except Exception as e:
         postgres_db.rollback()

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { X, FileText, Layers, Binary, HardDrive, Calendar, Cpu, Sparkles, Loader2, CheckCircle, AlertTriangle, Clock, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { API_URL } from '../config';
 
 const DocumentDrawer = ({ documentId, onClose }) => {
   const [doc, setDoc] = useState(null);
