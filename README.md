@@ -41,6 +41,17 @@ DocumentIQ is a high-performance, full-stack document intelligence platform. It 
 
 ---
 
+## Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| Frontend | React, Vite, Tailwind CSS v4, React Router |
+| Backend | FastAPI, SQLAlchemy, Pydantic |
+| Database | PostgreSQL |
+| Authentication | JWT, bcrypt |
+| DevOps | Docker, Docker Compose, Nginx |
+| Language | Python, JavaScript |
+
 ## How to Run
 
 ### Method 1: Using Docker (Recommended)
