@@ -5,7 +5,7 @@ DocumentIQ is a high-performance, full-stack document intelligence platform. It 
 ## Features
 
 - **Secure JWT Authentication**: Backend hashing (`bcrypt`) and protected endpoint session validation.
-- **Modern React Frontend**: Styled with Tailwind CSS v4, dynamic layouts, context state management, React Router routing guards.
+- **Modern React Frontend**: Styled with Tailwind CSS , dynamic layouts, context state management, React Router routing guards.
 - **FastAPI backend**: Fast, clean Pydantic schema validation, SQLAlchemy modeling, PostgreSQL storage.
 - **Docker Ready**: Preconfigured `docker-compose.yml` to orchestrate web, database, and backend systems in one command.
 
