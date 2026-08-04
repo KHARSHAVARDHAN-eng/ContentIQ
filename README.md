@@ -80,7 +80,7 @@ uvicorn app.main:app --reload
 ```
 *(Make sure to update backend `.env` `DATABASE_URL` if not running inside Docker).*
 
-#### 2. Running the Frontend:
+#### 2. Run the Frontend:
 ```bash
 cd frontend
 # Install packages
