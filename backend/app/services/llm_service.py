@@ -177,25 +177,15 @@ class LLMService:
         return round(float(top_score), 4)
 
     def _generate_mock_answer(self, question: str, context_chunks: List[Dict[str, Any]]) -> str:
-        # Search question keywords in chunks to formulate a dummy grounded answer
-        # Strip common punctuation first
-        clean_q = question.replace("?", "").replace(",", "").replace(".", "").lower()
-        q_words = [w for w in clean_q.split() if len(w) > 2]
+        if not context_chunks:
+            return "I could not find sufficient information in the uploaded documents."
         
-        best_chunk = None
-        best_matches = 0
+        # Respect the top-ranked chunk determined by the RAG pipeline (reranking/hybrid/compression)
+        top_chunk = context_chunks[0]
+        doc_name = top_chunk.get("document_name", "Unknown")
+        page_num = top_chunk.get("page_number", "N/A")
+        text = top_chunk.get("chunk_text", "").strip()
         
-        for chunk in context_chunks:
-            text = chunk.get("chunk_text", "").lower()
-            matches = sum(1 for w in q_words if w in text)
-            if matches > best_matches:
-                best_matches = matches
-                best_chunk = chunk
-                
-        if best_chunk and best_matches > 0:
-            text = best_chunk.get('chunk_text')
-            return f"According to {best_chunk.get('document_name')} (Page {best_chunk.get('page_number')}):\n{text}"
-            
-        return "I could not find sufficient information in the uploaded documents."
+        return f"According to {doc_name} (Page {page_num}):\n{text}"
 
 llm_service = LLMService()
