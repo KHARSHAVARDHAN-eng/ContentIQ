@@ -176,31 +176,49 @@ class QueryTransformationService:
             return self._fallback_resolve_history(query, history_msgs)
 
     def _fallback_resolve_history(self, query: str, history_msgs: List[ChatMessage]) -> str:
-        # Find a topic from recent history messages (from bot or user)
-        # Search for key terms to resolve "it", "this", "they", "them", "that"
+        if not history_msgs:
+            return query
+            
+        lower_q = query.lower().strip()
+        
+        # 1. If the query is already a complete, standalone question, preserve it.
+        # E.g. "Who kidnapped Sita and how did it happen?", "What key sizes does AES use?"
+        words = lower_q.split()
+        if len(words) >= 5:
+            # Common standalone patterns where 'it' is part of an idiomatic clause
+            if "how did it happen" in lower_q or "why did it happen" in lower_q or "how does it work" in lower_q:
+                # If query has substantial content words (e.g. "Who kidnapped Sita"), it is standalone
+                content_words = [w.strip("?,.!") for w in words if len(w) > 3 and w not in ["what", "where", "when", "with", "from", "that", "this", "have", "about"]]
+                if len(content_words) >= 2:
+                    return query
+
+        # 2. Extract recent topic/entity strictly from previous USER messages (avoiding system bot text)
         topic = None
-        for msg in reversed(history_msgs):
-            text = msg.text.lower()
-            for term in ["hybrid retrieval", "cross-encoder", "reranking", "adaptive chunking", "hallucination", "rag", "qdrant", "vector store", "easyocr", "ocr"]:
-                if term in text:
-                    topic = term
-                    break
-            if topic:
+        user_msgs = [m for m in history_msgs if m.sender == "user"]
+        exclude_words = {"what", "where", "when", "with", "from", "that", "this", "have", "about", "tell", "show", "give", "please", "some", "more", "details", "info", "information"}
+        for msg in reversed(user_msgs):
+            text = msg.text.strip()
+            content_words = [w.strip("?,.!\"'") for w in text.split() if len(w) > 2 and w.lower() not in exclude_words]
+            if content_words:
+                topic = " ".join(content_words[:3])
                 break
 
         if topic:
-            # Title-case the topic for cleaner queries
             topic_capitalized = " ".join(w.capitalize() for w in topic.split())
-            lower_q = query.lower()
-            if "how does it work" in lower_q:
-                return f"How does {topic_capitalized} work?"
-            if "explain it" in lower_q:
-                return f"Explain {topic_capitalized}"
-            if "what is it" in lower_q:
-                return f"What is {topic_capitalized}?"
-            # Simple replacement of pronouns if it occurs at the end or standalone
-            resolved = re.sub(r'\b(it|this|that)\b', topic_capitalized, query, flags=re.IGNORECASE)
-            return resolved
+            if lower_q in ["how does it work?", "how does it work", "explain it", "what is it", "why did he do that?", "why did he do that"]:
+                if "how does it work" in lower_q:
+                    return f"How does {topic_capitalized} work?"
+                if "explain it" in lower_q:
+                    return f"Explain {topic_capitalized}"
+                if "what is it" in lower_q:
+                    return f"What is {topic_capitalized}?"
+                if "he" in lower_q:
+                    return f"Why did {topic_capitalized} do that?"
+            
+            # Replace dangling pronouns ONLY if query is a short follow-up
+            if len(words) <= 5 and re.search(r'\b(it|this|that|he|she|they)\b', lower_q):
+                resolved = re.sub(r'\b(it|this|that|he|she|they)\b', topic_capitalized, query, flags=re.IGNORECASE)
+                return resolved
 
         return query
 
@@ -257,11 +275,15 @@ class QueryTransformationService:
             if kw in lower_q:
                 expansions.extend(variations)
 
-        # If no synonyms matched, generate some simple keyword variations
+        # If no synonyms matched, generate topic keyword variations excluding instruction verbs
         if not expansions:
-            words = [w.strip("?,.!") for w in query.split() if len(w) > 3]
-            if len(words) >= 2:
-                expansions.append(f"{words[0]} {words[1]}")
+            instruction_verbs = {
+                "explain", "summarize", "describe", "detail", "outline", "provide",
+                "discuss", "analyze", "evaluate", "compare", "contrast", "identify"
+            }
+            topic_words = [w.strip("?,.!\"'") for w in query.split() if len(w) > 3 and w.lower() not in instruction_verbs]
+            if len(topic_words) >= 2:
+                expansions.append(f"{topic_words[0]} {topic_words[1]}")
 
         return expansions
 

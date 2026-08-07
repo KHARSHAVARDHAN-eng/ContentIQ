@@ -55,11 +55,13 @@ class RuleBasedQueryRewriter(BaseQueryRewriter):
         elif intent == "summarization" and re.search(r'\b(summarize|summary|tl;dr)\b', lower_q):
             subjects_match = re.search(r'\b(?:summarize|summary of|tl;dr)\b\s+(.*)', lower_q, re.IGNORECASE)
             subject_text = subjects_match.group(1).strip() if subjects_match else ""
-            if "pdf" in subject_text.lower() or "doc" in subject_text.lower() or "file" in subject_text.lower() or not subject_text:
+            if not subject_text or any(k in subject_text.lower() for k in ["pdf", "doc", "file", "document", "everything", "all"]):
                 rewritten = "Generate a concise summary of the uploaded document"
+                template_reason = "Applied generic document summarization template."
             else:
-                rewritten = f"Generate a concise summary of {subject_text}"
-            template_reason = "Applied summarization intent template."
+                # Keep specific topic queries intact
+                rewritten = query
+                template_reason = "Specific topic query preserved for target retrieval."
             
         elif intent in ["procedural", "explanation"] and re.search(r'\bhow does\b', lower_q):
             subject_match = re.search(r'\bhow does\b\s+(.*?)\s+\bwork\b', lower_q, re.IGNORECASE)

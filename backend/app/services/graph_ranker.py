@@ -78,18 +78,17 @@ class GraphRanker:
                     if cid in [str(x) for x in cids]:
                         chunk_centrality = max(chunk_centrality, pr)
 
-            # Combined score mapping
+            # Combined score mapping: vector scores are preserved as primary, graph hits add a small boost
             if vector_hit and graph_hit:
                 v_score = vector_hit["score"]
-                g_score = graph_hit["score"] + chunk_centrality
-                score = (1.0 - hybrid_weight) * v_score + hybrid_weight * g_score
+                g_score = graph_hit.get("score", 0.8) + chunk_centrality
+                score = v_score + hybrid_weight * (g_score * 0.2)
             elif vector_hit:
-                v_score = vector_hit["score"]
-                score = (1.0 - hybrid_weight) * v_score
+                score = vector_hit["score"]
             else:
                 # Graph retrieved only
-                g_score = graph_hit["score"] + chunk_centrality
-                score = hybrid_weight * g_score
+                g_score = graph_hit.get("score", 0.8) + chunk_centrality
+                score = hybrid_weight * (g_score * 0.5)
 
             # Retain the base hit metadata (preferring vector metadata for ranking/text consistency)
             base_hit = vector_hit or graph_hit

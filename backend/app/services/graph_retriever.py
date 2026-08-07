@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import List, Dict, Any, Set, Tuple
 from sqlalchemy.orm import Session
 
@@ -64,8 +65,8 @@ class GraphRetriever:
                 if any(q_name == a.lower().strip() for a in node.get("aliases", [])):
                     matched.add(nid)
                     continue
-                # Check containment
-                if q_name in node_name_lower or node_name_lower in q_name:
+                # Check exact word boundary match in query
+                if len(node_name_lower) >= 3 and re.search(r'\b' + re.escape(node_name_lower) + r'\b', q_name):
                     matched.add(nid)
                     
         return matched
