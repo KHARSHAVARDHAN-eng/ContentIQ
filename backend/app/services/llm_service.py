@@ -64,11 +64,16 @@ class LLMService:
             genai.configure(api_key=api_key)
             
             system_instruction = (
-                "You are a document assistant.\n"
-                "Answer ONLY using the provided context.\n"
-                "If the answer is not found in the context, say exactly:\n"
+                "You are an expert document assistant and synthesis engine.\n"
+                "Your task is to answer the user's question directly, clearly, and concisely in complete, natural English sentences.\n"
+                "Follow these strict response synthesis principles:\n"
+                "1. Direct Answer First: State the core factual answer directly in the very first sentence.\n"
+                "2. Synthesize Evidence: Combine relevant facts from the provided context blocks smoothly into coherent prose.\n"
+                "3. Clean Sentences: Every sentence must be a complete, well-formed sentence. Never copy broken word fragments, leading partial sentences, or raw context headers.\n"
+                "4. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
+                "5. Fallback Rule: If the answer cannot be determined from the provided context, state exactly:\n"
                 "'I could not find sufficient information in the uploaded documents.'\n"
-                "Never invent information. Maintain factual alignment to context."
+                "6. No Duplication: Eliminate duplicate facts or repeated sentences."
             )
             
             model = genai.GenerativeModel(
@@ -180,12 +185,51 @@ class LLMService:
         if not context_chunks:
             return "I could not find sufficient information in the uploaded documents."
         
-        # Respect the top-ranked chunk determined by the RAG pipeline (reranking/hybrid/compression)
-        top_chunk = context_chunks[0]
-        doc_name = top_chunk.get("document_name", "Unknown")
-        page_num = top_chunk.get("page_number", "N/A")
-        text = top_chunk.get("chunk_text", "").strip()
+        import re
+        cleaned_sentences = []
+        seen_lower = set()
         
-        return f"According to {doc_name} (Page {page_num}):\n{text}"
+        for chunk in context_chunks[:3]:
+            text = chunk.get("chunk_text", "").strip()
+            if not text:
+                continue
+            
+            # Apply boundary cleaning to strip incomplete leading/trailing fragments
+            from app.services.context_compressor import context_compressor
+            text = context_compressor._clean_chunk_boundaries(text)
+            
+            # Extract complete grammatical sentences ending in punctuation (. ! ?)
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+            chunk_sentence_count = 0
+            
+            for s in sentences:
+                # Append terminal period if sentence lacks ending punctuation (e.g. OCR outputs or list headers)
+                if not re.search(r'[.!?]$', s):
+                    s = s + "."
+                
+                norm = re.sub(r'[^\w\s]', '', s.lower()).strip()
+                if not norm or len(s.split()) < 3:
+                    continue
+
+                # Check for substring / overlap sentence duplication
+                is_dup = False
+                for existing in list(seen_lower):
+                    if norm in existing or existing in norm:
+                        is_dup = True
+                        break
+                
+                if not is_dup:
+                    seen_lower.add(norm)
+                    cleaned_sentences.append(s)
+                    chunk_sentence_count += 1
+                    if chunk_sentence_count >= 2:
+                        break
+        
+        if not cleaned_sentences:
+            return "I could not find sufficient information in the uploaded documents."
+        
+        # Synthesize clean sentences into a natural response paragraph
+        synthesized_text = " ".join(cleaned_sentences[:4]).strip()
+        return synthesized_text
 
 llm_service = LLMService()

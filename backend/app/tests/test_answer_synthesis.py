@@ -1,0 +1,79 @@
+import unittest
+from app.services.context_compressor import context_compressor
+from app.services.llm_service import llm_service
+
+class AnswerSynthesisQualityTest(unittest.TestCase):
+
+    def test_chunk_beginning_mid_sentence_cleanup(self):
+        # Test boundary cleaning on leading partial word/sentence fragments (e.g. 'ana later left...')
+        raw_text = "ana later left the hut after hearing a deceptive cry. Ravana seized the opportunity to abduct Sita."
+        cleaned = context_compressor._clean_chunk_boundaries(raw_text)
+        
+        # Verify leading broken sentence fragment is discarded and text starts cleanly with 'Ravana'
+        self.assertFalse(cleaned.startswith("ana "))
+        self.assertFalse(cleaned.startswith("Later "))
+        self.assertTrue(cleaned.startswith("Ravana seized"))
+
+    def test_chunk_ending_mid_sentence_cleanup(self):
+        # Test boundary cleaning on trailing unpunctuated sentence fragments
+        raw_text = "Maricha disguised himself as a golden deer. Sita requested the deer and Lakshmana"
+        cleaned = context_compressor._clean_chunk_boundaries(raw_text)
+        
+        # Verify unpunctuated trailing fragment 'and Lakshmana' is trimmed to full sentence boundary
+        self.assertEqual(cleaned, "Maricha disguised himself as a golden deer.")
+
+    def test_mock_answer_synthesis_no_broken_fragments(self):
+        # Test LLM mock answer synthesis with broken input fragments
+        context_chunks = [
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 5,
+                "chunk_id": "1380",
+                "chunk_text": "ana later left the hut after hearing a deceptive cry. Ravana seized the opportunity to abduct Sita."
+            },
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 6,
+                "chunk_id": "1382",
+                "chunk_text": "Maricha disguised himself as a golden deer to lure Rama away."
+            }
+        ]
+        
+        ans = llm_service._generate_mock_answer("Who kidnapped Sita?", context_chunks)
+        
+        # Must start cleanly with complete sentence starting with Ravana
+        self.assertFalse(ans.startswith("ana "))
+        self.assertFalse(ans.startswith("According to"))
+        self.assertTrue(ans.startswith("Ravana seized"))
+        # Must not duplicate exact sentences
+        self.assertEqual(ans.count("Ravana seized the opportunity to abduct Sita"), 1)
+
+    def test_multi_chunk_and_multi_page_synthesis(self):
+        # Test synthesis across chunks from different pages
+        context_chunks = [
+            {
+                "document_name": "MultiPage_Doc.pdf",
+                "page_number": 1,
+                "chunk_id": "101",
+                "chunk_text": "Alpha Corporation recorded 40 percent growth in Q1."
+            },
+            {
+                "document_name": "MultiPage_Doc.pdf",
+                "page_number": 2,
+                "chunk_id": "102",
+                "chunk_text": "In Q2 Alpha Corporation expanded into three international markets."
+            }
+        ]
+        
+        sources = llm_service._compile_sources(context_chunks)
+        self.assertEqual(len(sources), 2)
+        self.assertEqual(sources[0]["page_number"], 1)
+        self.assertEqual(sources[1]["page_number"], 2)
+
+    def test_out_of_scope_question(self):
+        # Test handling of out-of-scope question with empty context
+        ans = llm_service._generate_mock_answer("What is quantum entanglement?", [])
+        self.assertEqual(ans, "I could not find sufficient information in the uploaded documents.")
+
+if __name__ == "__main__":
+    unittest.main()

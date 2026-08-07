@@ -340,6 +340,40 @@ class ContextCompressorService:
 
         return None
 
+    def _clean_chunk_boundaries(self, text: str) -> str:
+        """
+        Document-agnostic boundary cleanup:
+        1. If a chunk starts mid-sentence/mid-word (i.e. starts with a lowercase letter),
+           discard the broken leading sentence fragment up to the first complete sentence boundary (. ! ? \n).
+        2. If a chunk ends with an unpunctuated trailing fragment, trim back to the last complete sentence boundary.
+        """
+        if not text:
+            return ""
+
+        cleaned = text.strip()
+
+        # 1. If text starts with a lowercase letter (indicating chunking split a sentence mid-stream),
+        # discard the broken leading fragment before the first sentence-ending punctuation mark.
+        if cleaned and cleaned[0].islower():
+            punct_indices = [i for i in [cleaned.find('.'), cleaned.find('!'), cleaned.find('?')] if i != -1]
+            if punct_indices:
+                first_punct_idx = min(punct_indices)
+                if first_punct_idx < len(cleaned) - 1:
+                    cleaned = cleaned[first_punct_idx + 1:].strip()
+                else:
+                    cleaned = cleaned[0].upper() + cleaned[1:]
+            else:
+                cleaned = cleaned[0].upper() + cleaned[1:]
+
+        # 2. Clean incomplete trailing fragment if it ends without sentence-ending punctuation (. ! ?)
+        last_punct_idx = max(cleaned.rfind('.'), cleaned.rfind('!'), cleaned.rfind('?'))
+        if last_punct_idx != -1 and last_punct_idx < len(cleaned) - 1:
+            trailing_text = cleaned[last_punct_idx + 1:].strip()
+            if trailing_text and not re.search(r'[.!?]$', trailing_text):
+                cleaned = cleaned[:last_punct_idx + 1].strip()
+
+        return cleaned
+
     def _deduplicate_and_filter_sentences(
         self, 
         chunks: List[Dict[str, Any]], 
@@ -366,9 +400,12 @@ class ContextCompressorService:
             doc_name = c.get("document_name", "Unknown")
             page_num = c.get("page_number", 1)
             score = c.get("score", 0.0)
-            text = c.get("chunk_text", "")
+            raw_text = c.get("chunk_text", "")
+            
+            # Pre-clean boundaries to eliminate partial leading/trailing word fragments
+            text = self._clean_chunk_boundaries(raw_text)
 
-            # Split into sentences using a regex
+            # Split into sentences using regex
             raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
             kept_chunk_sentences = []
 
@@ -420,7 +457,7 @@ class ContextCompressorService:
                 if exact_dup:
                     continue
 
-                # Semantic duplicate check (batch embeddings of kept sentences is better, but here we embed one-by-one)
+                # Semantic duplicate check
                 s_embedding = embedding_service.get_embedding(s)
                 semantic_dup = False
                 for idx, se in enumerate(seen_embeddings):
@@ -441,8 +478,8 @@ class ContextCompressorService:
                     seen_sentences.append(s)
                     seen_embeddings.append(s_embedding)
 
-            # Reconstruct chunk text
-            new_text = " ".join(kept_chunk_sentences).strip()
+            # Reconstruct chunk text and apply boundary cleaning
+            new_text = self._clean_chunk_boundaries(" ".join(kept_chunk_sentences).strip())
             if new_text:
                 processed_chunks.append(
                     ChunkMetadata(
