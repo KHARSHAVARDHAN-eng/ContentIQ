@@ -77,14 +77,19 @@ class RerankingService:
             raw_score = float(raw_scores[idx])
             prob_score = 1.0 / (1.0 + math.exp(-raw_score))
             
+            # Combine Reranker cross-encoder probability with original hybrid/dense score (70% reranker, 30% original)
+            # This ensures cross-encoder score noise cannot completely override top-1 dense/BM25 retrieval hits
+            orig_score = float(h.get("score", 0.0))
+            combined_score = 0.70 * prob_score + 0.30 * orig_score
+            
             hit_copy = dict(h)
             hit_copy["rerank_score"] = round(prob_score, 4)
-            hit_copy["score"] = round(prob_score, 4)
+            hit_copy["score"] = round(combined_score, 4)
             hit_copy["_orig_rank"] = idx
             scored_hits.append(hit_copy)
 
-        # 2. Sort by rerank score descending
-        scored_hits.sort(key=lambda x: x["rerank_score"], reverse=True)
+        # 2. Sort by combined rerank score descending
+        scored_hits.sort(key=lambda x: x["score"], reverse=True)
 
         # 3. Filter and categorize by threshold
         retained_hits = []

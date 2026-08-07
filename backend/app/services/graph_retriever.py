@@ -87,6 +87,11 @@ class GraphRetriever:
                 continue
                 
             neighbors = graph_store.get_neighbors(curr)
+            # Hub-node degree control: If a node has an extreme degree (e.g. >15 neighbors),
+            # restrict traversal depth from hub nodes to prevent graph explosion.
+            if len(neighbors) > 15 and curr_depth >= 1:
+                continue
+
             for n in neighbors:
                 neighbor_id = n["node_id"]
                 
@@ -101,8 +106,6 @@ class GraphRetriever:
                     queue.append(neighbor_id)
                     
                 # Track unique edges
-                # To avoid duplicating source->target vs target->source directed edges,
-                # let's locate the original edge record in graph_store.edges
                 for original_edge in graph_store.edges:
                     s, t = original_edge["source"], original_edge["target"]
                     if (s == curr and t == neighbor_id) or (s == neighbor_id and t == curr):
@@ -118,8 +121,8 @@ class GraphRetriever:
         edges: List[Dict[str, Any]],
         user_doc_ids: List[int]
     ) -> List[Dict[str, Any]]:
-        # Gather all chunk IDs referenced by the nodes and edges
-        chunk_ids: Set[int] = set()
+        # Gather all chunk IDs referenced by the nodes and edges with chunk frequency counting
+        chunk_score_map: Dict[int, int] = {}
         
         # 1. From traversed nodes
         for nid in node_ids:
@@ -128,7 +131,8 @@ class GraphRetriever:
                 cids = node.get("properties", {}).get("chunk_ids", [])
                 for cid in cids:
                     try:
-                        chunk_ids.add(int(cid))
+                        cid_int = int(cid)
+                        chunk_score_map[cid_int] = chunk_score_map.get(cid_int, 0) + 2
                     except (ValueError, TypeError):
                         pass
                         
@@ -137,29 +141,37 @@ class GraphRetriever:
             cid = edge.get("properties", {}).get("chunk_id")
             if cid:
                 try:
-                    chunk_ids.add(int(cid))
+                    cid_int = int(cid)
+                    chunk_score_map[cid_int] = chunk_score_map.get(cid_int, 0) + 1
                 except (ValueError, TypeError):
                     pass
                     
-        if not chunk_ids:
+        if not chunk_score_map:
             return []
+
+        # Sort chunk IDs by occurrence score descending and cap at GRAPHRAG_MAX_RETRIEVED_CHUNKS
+        max_chunks = getattr(settings, "GRAPHRAG_MAX_RETRIEVED_CHUNKS", 10)
+        sorted_chunk_ids = [
+            cid for cid, _ in sorted(chunk_score_map.items(), key=lambda x: x[1], reverse=True)[:max_chunks]
+        ]
             
         # Retrieve chunks from DB filtered by authorized document IDs
         db_chunks = db.query(DocumentChunk).filter(
-            DocumentChunk.id.in_(list(chunk_ids)),
+            DocumentChunk.id.in_(sorted_chunk_ids),
             DocumentChunk.document_id.in_(user_doc_ids)
         ).all()
         
         # Format matching the standard Hybrid search hit dictionary structure
         formatted_chunks = []
         for chunk in db_chunks:
-            # We assign a default structural graph score (e.g. 0.8) which will be ranked
+            # Score proportional to entity-connection density
+            conn_freq = chunk_score_map.get(chunk.id, 1)
             formatted_chunks.append({
                 "chunk_id": str(chunk.id),
                 "document_id": chunk.document_id,
                 "page_number": chunk.page_number,
                 "chunk_text": chunk.chunk_text,
-                "score": 0.80, # Base relevance weight for matching graph retrieval
+                "score": min(0.85, 0.50 + conn_freq * 0.05),
                 "is_graph_retrieved": True
             })
             

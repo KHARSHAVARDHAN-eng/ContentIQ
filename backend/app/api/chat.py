@@ -109,8 +109,9 @@ def grounded_chat(
             if query_transformation and settings.MULTI_QUERY_ENABLED:
                 search_queries = query_transformation.generated_retrieval_queries
                 
-            all_hits = []
-            seen_chunks = set()
+            # Multi-query Retrieval with Reciprocal Rank Fusion (RRF)
+            # Collect hits per query list to prevent specific subquery results from being overridden
+            query_hits_lists = []
             
             for q_idx, q in enumerate(search_queries):
                 hits, hr = hybrid_retriever.search(
@@ -119,20 +120,33 @@ def grounded_chat(
                     user_doc_ids=user_doc_ids,
                     limit=retrieval_limit
                 )
-                all_hits.extend(hits)
-                # Keep primary hybrid_retrieval for response metadata
+                query_hits_lists.append(hits)
                 if q_idx == 0:
                     hybrid_retrieval = hr
                     
-            # Deduplicate and sort by score descending
-            all_hits.sort(key=lambda x: x["score"], reverse=True)
-            deduped_hits = []
-            for h in all_hits:
-                cid = h["chunk_id"]
-                if cid not in seen_chunks:
-                    seen_chunks.add(cid)
-                    deduped_hits.append(h)
-            raw_hits = deduped_hits[:retrieval_limit]
+            # Reciprocal Rank Fusion (RRF) across all subqueries
+            rrf_k = 60.0
+            chunk_rrf_scores: Dict[Any, float] = {}
+            chunk_obj_map: Dict[Any, Dict[str, Any]] = {}
+            
+            for q_hits in query_hits_lists:
+                for rank, hit in enumerate(q_hits):
+                    cid = hit["chunk_id"]
+                    rrf_score = 1.0 / (rrf_k + rank + 1)
+                    chunk_rrf_scores[cid] = chunk_rrf_scores.get(cid, 0.0) + rrf_score
+                    if cid not in chunk_obj_map or hit["score"] > chunk_obj_map[cid]["score"]:
+                        chunk_obj_map[cid] = hit
+                        
+            # Assign RRF-fused score to merged hits
+            fused_hits = []
+            for cid, rrf_sc in chunk_rrf_scores.items():
+                hit_item = dict(chunk_obj_map[cid])
+                # Boost chunk score with RRF fused score
+                hit_item["score"] = round(hit_item["score"] + rrf_sc, 4)
+                fused_hits.append(hit_item)
+                
+            fused_hits.sort(key=lambda x: x["score"], reverse=True)
+            raw_hits = fused_hits[:retrieval_limit]
             
         except Exception as e:
             raise HTTPException(

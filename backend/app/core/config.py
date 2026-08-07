@@ -151,6 +151,7 @@ class Settings(BaseSettings):
     GRAPHRAG_CONFIDENCE_THRESHOLD: float = 0.50
     GRAPHRAG_TRAVERSAL_DEPTH: int = 2
     GRAPHRAG_HYBRID_WEIGHT: float = 0.30
+    GRAPHRAG_MAX_RETRIEVED_CHUNKS: int = 10
 
     
     # DB configs
