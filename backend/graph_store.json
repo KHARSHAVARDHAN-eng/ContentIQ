@@ -7,10 +7,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1552
+          1580
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -22,10 +22,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          821
+          837
         ],
         "chunk_ids": [
-          1565
+          1582
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -37,10 +37,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1552
+          1580
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -52,10 +52,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1552
+          1580
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -67,10 +67,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1552
+          1580
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -82,10 +82,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1553
+          1581
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -97,10 +97,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1553
+          1581
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -112,10 +112,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1553
+          1581
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -127,10 +127,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          809
+          836
         ],
         "chunk_ids": [
-          1553
+          1581
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -142,10 +142,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          821
+          837
         ],
         "chunk_ids": [
-          1565
+          1582
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -157,10 +157,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          822
+          838
         ],
         "chunk_ids": [
-          1566
+          1583
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -172,10 +172,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          823
+          839
         ],
         "chunk_ids": [
-          1567
+          1584
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -187,10 +187,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          824
+          840
         ],
         "chunk_ids": [
-          1568
+          1585
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -202,10 +202,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          824
+          840
         ],
         "chunk_ids": [
-          1568
+          1585
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -217,10 +217,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          824
+          840
         ],
         "chunk_ids": [
-          1568
+          1585
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -232,10 +232,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          824
+          840
         ],
         "chunk_ids": [
-          1568
+          1585
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -247,10 +247,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          824
+          840
         ],
         "chunk_ids": [
-          1568
+          1585
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -277,10 +277,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          819
+          834
         ],
         "chunk_ids": [
-          1563
+          1578
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -292,10 +292,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          819
+          834
         ],
         "chunk_ids": [
-          1563
+          1578
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -307,10 +307,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          819
+          834
         ],
         "chunk_ids": [
-          1563
+          1578
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -322,10 +322,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          819
+          834
         ],
         "chunk_ids": [
-          1563
+          1578
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -337,10 +337,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          819
+          834
         ],
         "chunk_ids": [
-          1563
+          1578
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -352,10 +352,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          813
+          828
         ],
         "chunk_ids": [
-          1557
+          1572
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -367,10 +367,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          813
+          828
         ],
         "chunk_ids": [
-          1557
+          1572
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -382,10 +382,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          814
+          829
         ],
         "chunk_ids": [
-          1558
+          1573
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -397,10 +397,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          814
+          829
         ],
         "chunk_ids": [
-          1558
+          1573
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -412,10 +412,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          815
+          830
         ],
         "chunk_ids": [
-          1559
+          1574
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -427,10 +427,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          815
+          830
         ],
         "chunk_ids": [
-          1559
+          1574
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -442,10 +442,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          816
+          831
         ],
         "chunk_ids": [
-          1560
+          1575
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -457,10 +457,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          816
+          831
         ],
         "chunk_ids": [
-          1560
+          1575
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -472,10 +472,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          817
+          832
         ],
         "chunk_ids": [
-          1561
+          1576
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -487,10 +487,10 @@
       "aliases": [],
       "properties": {
         "document_ids": [
-          820
+          835
         ],
         "chunk_ids": [
-          1564
+          1579
         ],
         "description": "Extracted via rule-based heuristics from text context."
       }
@@ -4734,8 +4734,8 @@
       "description": "Abstract is co-mentioned with RAG in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 809,
-        "chunk_id": 1552
+        "document_id": 836,
+        "chunk_id": 1580
       }
     },
     {
@@ -4745,8 +4745,8 @@
       "description": "Introduction is co-mentioned with Splitting in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 809,
-        "chunk_id": 1552
+        "document_id": 836,
+        "chunk_id": 1580
       }
     },
     {
@@ -4756,8 +4756,8 @@
       "description": "Sentence implies References authored by Author.",
       "confidence": 0.75,
       "properties": {
-        "document_id": 809,
-        "chunk_id": 1553
+        "document_id": 836,
+        "chunk_id": 1581
       }
     },
     {
@@ -4767,8 +4767,8 @@
       "description": "Autonomous is co-mentioned with RAG in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 821,
-        "chunk_id": 1565
+        "document_id": 837,
+        "chunk_id": 1582
       }
     },
     {
@@ -4778,8 +4778,8 @@
       "description": "Paragraph One is co-mentioned with Context Compression in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 824,
-        "chunk_id": 1568
+        "document_id": 840,
+        "chunk_id": 1585
       }
     },
     {
@@ -4789,8 +4789,8 @@
       "description": "Context Compression is co-mentioned with Paragraph Two in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 824,
-        "chunk_id": 1568
+        "document_id": 840,
+        "chunk_id": 1585
       }
     },
     {
@@ -4800,8 +4800,8 @@
       "description": "DocumentIQ is co-mentioned with AI-powered in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 819,
-        "chunk_id": 1563
+        "document_id": 834,
+        "chunk_id": 1578
       }
     },
     {
@@ -4811,8 +4811,8 @@
       "description": "Query Analysis is co-mentioned with Query Rewriting in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 819,
-        "chunk_id": 1563
+        "document_id": 834,
+        "chunk_id": 1578
       }
     },
     {
@@ -4822,8 +4822,8 @@
       "description": "Query Analysis is co-mentioned with Adaptive Retrieval in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 819,
-        "chunk_id": 1563
+        "document_id": 834,
+        "chunk_id": 1578
       }
     },
     {
@@ -4833,8 +4833,8 @@
       "description": "Query Rewriting is co-mentioned with Adaptive Retrieval in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 819,
-        "chunk_id": 1563
+        "document_id": 834,
+        "chunk_id": 1578
       }
     },
     {
@@ -4844,8 +4844,8 @@
       "description": "Secret OCR Code is co-mentioned with Antigravity RAG in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 813,
-        "chunk_id": 1557
+        "document_id": 828,
+        "chunk_id": 1572
       }
     },
     {
@@ -4855,8 +4855,8 @@
       "description": "Scanned PDF is co-mentioned with Qdrant in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 814,
-        "chunk_id": 1558
+        "document_id": 829,
+        "chunk_id": 1573
       }
     },
     {
@@ -4866,8 +4866,8 @@
       "description": "Position is co-mentioned with Data Analyst Intern\nDuration in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 815,
-        "chunk_id": 1559
+        "document_id": 830,
+        "chunk_id": 1574
       }
     },
     {
@@ -4877,8 +4877,8 @@
       "description": "Raman Iyer is co-mentioned with Starlight-7 in context.",
       "confidence": 0.5,
       "properties": {
-        "document_id": 816,
-        "chunk_id": 1560
+        "document_id": 831,
+        "chunk_id": 1575
       }
     },
     {

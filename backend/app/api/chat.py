@@ -29,6 +29,13 @@ def grounded_chat(
     current_user: User = Depends(get_current_user)
 ):
     question = chat_req.question.strip()
+    logger.info(f"\n" + "="*80)
+    logger.info(f"[REAL RAG PIPELINE TRACE] INCOMING REAL BROWSER / API REQUEST:")
+    logger.info(f"  User ID:    {current_user.id} ({current_user.email})")
+    logger.info(f"  Session ID: {chat_req.session_id}")
+    logger.info(f"  Question:   '{question}'")
+    logger.info(f"="*80)
+
     if not question:
         return {
             "answer": "Please ask a valid question.",
