@@ -6,6 +6,11 @@ class DocumentBase(BaseModel):
     size: str
     status: str
     ocr_confidence: float | None = None
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+    chunk_strategy: str | None = None
+    document_type: str | None = None
+    chunk_reason: str | None = None
 
 class DocumentCreate(DocumentBase):
     path: str
@@ -25,6 +30,10 @@ class DocumentPreviewResponse(BaseModel):
     status: str
     page_count: int
     ocr_confidence: float | None = None
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+    chunk_strategy: str | None = None
+    document_type: str | None = None
+    chunk_reason: str | None = None
     created_at: datetime
     extracted_text_preview: str
-

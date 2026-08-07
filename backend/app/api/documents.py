@@ -126,7 +126,12 @@ def get_document_preview(
         "page_count": page_count,
         "ocr_confidence": doc.ocr_confidence,
         "created_at": doc.created_at,
-        "extracted_text_preview": full_preview or "No text extracted."
+        "extracted_text_preview": full_preview or "No text extracted.",
+        "chunk_size": doc.chunk_size,
+        "chunk_overlap": doc.chunk_overlap,
+        "chunk_strategy": doc.chunk_strategy,
+        "document_type": doc.document_type,
+        "chunk_reason": doc.chunk_reason
     }
 
 @router.get("/{document_id}/chunks", response_model=DocumentChunksOverviewResponse)

@@ -16,6 +16,7 @@ from app.models.chunk_embedding import ChunkEmbedding
 from app.core.config import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.services.embedding_service import embedding_service
+from app.services.adaptive_chunking import adaptive_chunker
 
 def process_document_task(document_id: int):
     db = SessionLocal()
@@ -26,6 +27,7 @@ def process_document_task(document_id: int):
             return
 
         print(f"Starting extraction for document {document_id}: {doc.name}")
+        print("START parsing")
         doc.status = "PROCESSING"
         db.commit()
 
@@ -113,17 +115,24 @@ def process_document_task(document_id: int):
             doc.status = "TEXT_EXTRACTED"
             db.commit()
             print(f"Finished extraction. Transitioned document {document_id} to TEXT_EXTRACTED")
+            print("END parsing")
 
             # Transition to CHUNKED state
             doc.status = "CHUNKED"
             db.commit()
             print(f"Starting chunking for document {document_id}...")
+            print("START chunking")
 
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=settings.CHUNK_SIZE,
-                chunk_overlap=settings.CHUNK_OVERLAP,
-                length_function=len
-            )
+            # Run adaptive chunker once on full document text to obtain and save metadata parameters
+            full_text = "\n\n".join([p.extracted_text for p in pages_to_insert if p.extracted_text not in ["[Empty Page]", "[Empty Document]"]])
+            _, metadata = adaptive_chunker.chunk_document(full_text, doc.name)
+            
+            doc.chunk_size = metadata["chunk_size"]
+            doc.chunk_overlap = metadata["overlap"]
+            doc.chunk_strategy = metadata["chunk_strategy"]
+            doc.document_type = metadata["document_type"]
+            doc.chunk_reason = metadata["chunk_reason"]
+            db.commit()
 
             chunks_to_insert = []
             chunk_global_index = 0
@@ -133,7 +142,7 @@ def process_document_task(document_id: int):
                 if text in ["[Empty Page]", "[Empty Document]"]:
                     continue
                 
-                splits = text_splitter.split_text(text)
+                splits, _ = adaptive_chunker.chunk_document(text, doc.name)
                 for split_text in splits:
                     clean_text = split_text.strip()
                     if not clean_text:
@@ -157,6 +166,8 @@ def process_document_task(document_id: int):
                 doc.status = "EMBEDDING_GENERATION"
                 db.commit()
                 print(f"Document {document_id} chunks created. Starting embedding generation...")
+                print("END chunking")
+                print("START embeddings")
 
                 chunk_texts = [c.chunk_text for c in chunks_to_insert]
                 vectors = embedding_service.get_embeddings(chunk_texts)
@@ -175,11 +186,13 @@ def process_document_task(document_id: int):
                 doc.status = "EMBEDDED"
                 db.commit()
                 print(f"Finished processing and embedding successfully. Document {document_id} status: EMBEDDED")
+                print("END embeddings")
 
                 # Transition status to INDEXING
                 doc.status = "INDEXING"
                 db.commit()
                 print(f"Document {document_id}: Starting Qdrant indexing...")
+                print("START indexing")
 
                 from app.services.vector_store import vector_store
                 vector_store.create_collection()
@@ -200,9 +213,22 @@ def process_document_task(document_id: int):
                 if points_data:
                     vector_store.upsert_chunks_bulk(points_data)
 
+                print("START status update")
                 doc.status = "INDEXED"
                 db.commit()
+                print("END status update")
                 print(f"Finished processing, embedding and indexing successfully. Document {document_id} status: INDEXED")
+                print("END indexing")
+                
+                # Build Knowledge Graph if enabled
+                if settings.GRAPHRAG_ENABLED:
+                    print("START GraphRAG")
+                    try:
+                        from app.services.graph_builder import graph_builder
+                        graph_builder.build_graph_for_document(doc.id, chunks_to_insert)
+                        print("END GraphRAG")
+                    except Exception as ge:
+                        print(f"Graph construction failed for document {document_id}: {ge}")
             else:
                 doc.status = "INDEXED"
                 db.commit()

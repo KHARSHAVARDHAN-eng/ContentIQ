@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, users, documents, search, chat, evaluations, conversations, study_tools
+from app.api import auth, users, documents, search, chat, evaluations, conversations, study_tools, graph
 from app.models.user import User
 
 from app.models.document import Document
@@ -32,6 +32,14 @@ try:
             print("Added column ocr_confidence to document_pages table")
         except Exception as e:
             print(f"Document_pages alter column status: {e}")
+            
+        for col, col_type in [("chunk_size", "INTEGER"), ("chunk_overlap", "INTEGER"), ("chunk_strategy", "VARCHAR"), ("document_type", "VARCHAR"), ("chunk_reason", "VARCHAR")]:
+            try:
+                conn.execute(text(f"ALTER TABLE documents ADD COLUMN {col} {col_type}"))
+                conn.commit()
+                print(f"Added column {col} to documents table")
+            except Exception as e:
+                pass
 except Exception as e:
     print(f"Error creating database tables: {e}")
 
@@ -206,6 +214,7 @@ app.include_router(chat.router, prefix=f"{settings.API_V1_STR}", tags=["chat"])
 app.include_router(evaluations.router, prefix=f"{settings.API_V1_STR}/evaluations", tags=["evaluations"])
 app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 app.include_router(study_tools.router, prefix=f"{settings.API_V1_STR}/study-tools", tags=["study-tools"])
+app.include_router(graph.router, prefix=f"{settings.API_V1_STR}/graph", tags=["graph"])
 
 @app.get("/")
 def root():

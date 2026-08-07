@@ -5,7 +5,7 @@ DocumentIQ is a high-performance, full-stack document intelligence platform. It 
 ## Features
 
 - **Secure JWT Authentication**: Backend hashing (`bcrypt`) and protected endpoint session validation.
-- **Modern React Frontend**: Styled with Tailwind CSS , dynamic layouts, context state management, React Router routing guards.
+- **Modern React Frontend**: Styled with Tailwind CSS v4, dynamic layouts, context state management, React Router routing guards.
 - **FastAPI backend**: Fast, clean Pydantic schema validation, SQLAlchemy modeling, PostgreSQL storage.
 - **Docker Ready**: Preconfigured `docker-compose.yml` to orchestrate web, database, and backend systems in one command.
 
@@ -41,17 +41,6 @@ DocumentIQ is a high-performance, full-stack document intelligence platform. It 
 
 ---
 
-## Tech Stack
-
-| Category | Technologies |
-|----------|--------------|
-| Frontend | React, Vite, Tailwind CSS v4, React Router |
-| Backend | FastAPI, SQLAlchemy, Pydantic |
-| Database | PostgreSQL |
-| Authentication | JWT, bcrypt |
-| DevOps | Docker, Docker Compose, Nginx |
-| Language | Python, JavaScript |
-
 ## How to Run
 
 ### Method 1: Using Docker (Recommended)
@@ -80,7 +69,7 @@ uvicorn app.main:app --reload
 ```
 *(Make sure to update backend `.env` `DATABASE_URL` if not running inside Docker).*
 
-#### 2. Run the Frontend:
+#### 2. Running the Frontend:
 ```bash
 cd frontend
 # Install packages

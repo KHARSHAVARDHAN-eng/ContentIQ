@@ -154,11 +154,16 @@ class LLMService:
 
     def _compile_sources(self, context_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         sources = []
-        for chunk in context_chunks:
+        for idx, chunk in enumerate(context_chunks):
+            chunk_id_val = chunk.get("chunk_id", 0)
+            try:
+                chunk_idx_val = int(chunk_id_val)
+            except (ValueError, TypeError):
+                chunk_idx_val = idx
             sources.append({
                 "document_name": chunk.get("document_name", "Unknown"),
                 "page_number": chunk.get("page_number", 1),
-                "chunk_index": chunk.get("chunk_id", 0),
+                "chunk_index": chunk_idx_val,
                 "chunk_text": chunk.get("chunk_text", "")
             })
         return sources

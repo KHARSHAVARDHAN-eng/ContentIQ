@@ -12,6 +12,11 @@ class Document(Base):
     path = Column(String, nullable=False)
     status = Column(String, default="Completed")
     ocr_confidence = Column(Float, nullable=True)
+    chunk_size = Column(Integer, nullable=True)
+    chunk_overlap = Column(Integer, nullable=True)
+    chunk_strategy = Column(String, nullable=True)
+    document_type = Column(String, nullable=True)
+    chunk_reason = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
