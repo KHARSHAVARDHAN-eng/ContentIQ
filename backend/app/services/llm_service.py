@@ -65,15 +65,15 @@ class LLMService:
             
             system_instruction = (
                 "You are an expert document assistant and synthesis engine.\n"
-                "Your task is to answer the user's question directly, clearly, and concisely in complete, natural English sentences.\n"
+                "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided context blocks as evidence.\n"
                 "Follow these strict response synthesis principles:\n"
-                "1. Direct Answer First: State the core factual answer directly in the very first sentence.\n"
-                "2. Synthesize Evidence: Combine relevant facts from the provided context blocks smoothly into coherent prose.\n"
-                "3. Clean Sentences: Every sentence must be a complete, well-formed sentence. Never copy broken word fragments, leading partial sentences, or raw context headers.\n"
-                "4. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
-                "5. Fallback Rule: If the answer cannot be determined from the provided context, state exactly:\n"
-                "'I could not find sufficient information in the uploaded documents.'\n"
-                "6. No Duplication: Eliminate duplicate facts or repeated sentences."
+                "1. Answer Only What Is Asked: Focus exclusively on answering the user's specific question. State the direct answer immediately in the first sentence.\n"
+                "2. Include Only Relevant Evidence: Include ONLY facts and details that are directly required to explain or support the answer to THIS specific question.\n"
+                "3. Exclude Tangential Facts: Do NOT append extra or tangential facts from retrieved context blocks merely because they mention related entities or events. Once the user's question is fully answered, STOP immediately.\n"
+                "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose. Never copy raw chunk headers, leading word fragments, or unpunctuated text.\n"
+                "5. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
+                "6. Fallback Rule: If the question cannot be answered from the provided context, state exactly:\n"
+                "'I could not find sufficient information in the uploaded documents.'"
             )
             
             model = genai.GenerativeModel(
@@ -111,7 +111,7 @@ class LLMService:
                 raise last_exception
             
             answer = response.text.strip() if response.text else "I could not find sufficient information in the uploaded documents."
-            sources = self._compile_sources(context_chunks)
+            sources = self._compile_sources(context_chunks, answer)
             confidence = self._calculate_confidence(context_chunks)
             
             return {
@@ -153,13 +153,39 @@ class LLMService:
             
             return {
                 "answer": fallback_answer,
-                "sources": self._compile_sources(context_chunks),
+                "sources": self._compile_sources(context_chunks, fallback_answer),
                 "confidence": self._calculate_confidence(context_chunks)
             }
 
-    def _compile_sources(self, context_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _compile_sources(self, context_chunks: List[Dict[str, Any]], final_answer: str = "") -> List[Dict[str, Any]]:
+        if not context_chunks:
+            return []
+
+        # Filter for chunks whose distinct content words actively support the final answer
+        supporting_chunks = []
+        if final_answer and final_answer != "I could not find sufficient information in the uploaded documents.":
+            import re
+            answer_words = set(re.findall(r'\b[a-z0-9]+\b', final_answer.lower()))
+            for chunk in context_chunks:
+                chunk_text = chunk.get("chunk_text", "").lower()
+                c_words = set(re.findall(r'\b[a-z0-9]+\b', chunk_text))
+                distinct_matches = [
+                    w for w in c_words 
+                    if len(w) >= 4 and w in answer_words and w not in {
+                        "with", "that", "this", "from", "they", "them", "have", "been", "were", 
+                        "said", "could", "would", "their", "there", "which", "about", "other",
+                        "corp", "ltd", "inc", "co", "the", "and", "or", "also"
+                    }
+                ]
+                if len(distinct_matches) >= 3:
+                    supporting_chunks.append(chunk)
+
+        # Fallback to top retrieved chunk if distinct matching didn't isolate supporting chunks
+        if not supporting_chunks:
+            supporting_chunks = context_chunks[:1] if context_chunks else []
+
         sources = []
-        for idx, chunk in enumerate(context_chunks):
+        for idx, chunk in enumerate(supporting_chunks):
             chunk_id_val = chunk.get("chunk_id", 0)
             try:
                 chunk_idx_val = int(chunk_id_val)
@@ -186,50 +212,98 @@ class LLMService:
             return "I could not find sufficient information in the uploaded documents."
         
         import re
-        cleaned_sentences = []
-        seen_lower = set()
         
-        for chunk in context_chunks[:3]:
+        # Stopwords for query keyword extraction
+        stopwords = {
+            "what", "when", "where", "which", "who", "whom", "whose", "why", "how",
+            "is", "was", "were", "are", "been", "be", "have", "has", "had", "do", "does", "did",
+            "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by",
+            "about", "against", "between", "into", "through", "during", "before", "after",
+            "above", "below", "from", "up", "down", "in", "out", "on", "off", "over", "under",
+            "again", "further", "then", "once", "here", "there", "all", "any", "both", "each",
+            "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own",
+            "same", "so", "than", "too", "very", "can", "will", "just", "should", "now"
+        }
+        
+        q_words = [w for w in re.findall(r'\b[a-z0-9]+\b', question.lower()) if len(w) >= 3 and w not in stopwords]
+        
+        from app.services.context_compressor import context_compressor
+
+        # Group sentences by chunk
+        chunks_sentences = []
+        seen_lower = set()
+
+        for chunk_idx, chunk in enumerate(context_chunks[:5]):
             text = chunk.get("chunk_text", "").strip()
             if not text:
                 continue
             
-            # Apply boundary cleaning to strip incomplete leading/trailing fragments
-            from app.services.context_compressor import context_compressor
-            text = context_compressor._clean_chunk_boundaries(text)
+            cleaned_text = context_compressor._clean_chunk_boundaries(text)
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', cleaned_text) if s.strip()]
             
-            # Extract complete grammatical sentences ending in punctuation (. ! ?)
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
-            chunk_sentence_count = 0
-            
+            c_sents = []
             for s in sentences:
-                # Append terminal period if sentence lacks ending punctuation (e.g. OCR outputs or list headers)
                 if not re.search(r'[.!?]$', s):
                     s = s + "."
                 
                 norm = re.sub(r'[^\w\s]', '', s.lower()).strip()
                 if not norm or len(s.split()) < 3:
                     continue
-
-                # Check for substring / overlap sentence duplication
+                
                 is_dup = False
                 for existing in list(seen_lower):
                     if norm in existing or existing in norm:
                         is_dup = True
                         break
                 
-                if not is_dup:
-                    seen_lower.add(norm)
-                    cleaned_sentences.append(s)
-                    chunk_sentence_count += 1
-                    if chunk_sentence_count >= 2:
-                        break
-        
-        if not cleaned_sentences:
+                if is_dup:
+                    continue
+                
+                seen_lower.add(norm)
+                
+                s_words = set(re.findall(r'\b[a-z0-9]+\b', norm))
+                match_count = sum(1 for qw in q_words if qw in s_words)
+                
+                c_sents.append({
+                    "sentence": s,
+                    "norm": norm,
+                    "match_count": match_count,
+                    "chunk_index": chunk_idx
+                })
+
+            if c_sents:
+                chunks_sentences.append(c_sents)
+
+        if not chunks_sentences:
             return "I could not find sufficient information in the uploaded documents."
+
+        # Query-aware evidence selection:
+        # Prioritize top-ranked chunk evidence if it matches the query intent
+        selected_sentences = []
         
-        # Synthesize clean sentences into a natural response paragraph
-        synthesized_text = " ".join(cleaned_sentences[:4]).strip()
+        # Check if the primary (highest ranked) chunk contains matching query sentences
+        primary_matches = [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]
+        if primary_matches:
+            for cs in chunks_sentences[0][:2]:
+                selected_sentences.append(cs["sentence"])
+        else:
+            # If primary chunk has no explicit keyword match, check other chunks for strongest match
+            all_sents = []
+            for cs_list in chunks_sentences:
+                all_sents.extend(cs_list)
+            
+            all_sents.sort(key=lambda x: (x["match_count"], -x["chunk_index"]), reverse=True)
+            if all_sents and all_sents[0]["match_count"] > 0:
+                best_chunk_idx = all_sents[0]["chunk_index"]
+                target_chunk_sents = [cs for cs in all_sents if cs["chunk_index"] == best_chunk_idx]
+                for cs in target_chunk_sents[:2]:
+                    selected_sentences.append(cs["sentence"])
+            else:
+                # Default to top sentences from primary chunk
+                for cs in chunks_sentences[0][:2]:
+                    selected_sentences.append(cs["sentence"])
+
+        synthesized_text = " ".join(selected_sentences).strip()
         return synthesized_text
 
 llm_service = LLMService()

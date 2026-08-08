@@ -48,27 +48,97 @@ class AnswerSynthesisQualityTest(unittest.TestCase):
         # Must not duplicate exact sentences
         self.assertEqual(ans.count("Ravana seized the opportunity to abduct Sita"), 1)
 
-    def test_multi_chunk_and_multi_page_synthesis(self):
-        # Test synthesis across chunks from different pages
+    def test_query_aware_evidence_selection_abduction(self):
+        # Test that abduction query only selects abduction evidence and excludes irrelevant Hanuman/Jatayu context
         context_chunks = [
             {
-                "document_name": "MultiPage_Doc.pdf",
-                "page_number": 1,
-                "chunk_id": "101",
-                "chunk_text": "Alpha Corporation recorded 40 percent growth in Q1."
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 5,
+                "chunk_id": "1380",
+                "chunk_text": "Ravana seized the opportunity to abduct Sita. Maricha disguised himself as a golden deer to lure Rama away."
             },
             {
-                "document_name": "MultiPage_Doc.pdf",
-                "page_number": 2,
-                "chunk_id": "102",
-                "chunk_text": "In Q2 Alpha Corporation expanded into three international markets."
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 8,
+                "chunk_id": "1401",
+                "chunk_text": "Hanuman discovered Sita in Ashoka Vatika, conveyed Rama's message, and set parts of Lanka ablaze."
+            },
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 6,
+                "chunk_id": "1384",
+                "chunk_text": "The noble bird Jatayu bravely fought Ravana in an attempt to rescue Sita."
             }
         ]
         
-        sources = llm_service._compile_sources(context_chunks)
-        self.assertEqual(len(sources), 2)
+        question = "Who kidnapped Sita and how did it happen?"
+        ans = llm_service._generate_mock_answer(question, context_chunks)
+        
+        # Must contain Ravana abduction details
+        self.assertIn("Ravana", ans)
+        self.assertIn("abduct", ans.lower())
+        
+        # Must NOT append irrelevant Hanuman / Lanka / Jatayu facts
+        self.assertNotIn("Ashoka Vatika", ans)
+        self.assertNotIn("ablaze", ans.lower())
+        self.assertNotIn("Jatayu", ans)
+
+    def test_generic_acme_corp_acquisition(self):
+        # Document-agnostic test: Acme Corp acquisition query
+        context_chunks = [
+            {
+                "document_name": "Financial_Report.pdf",
+                "page_number": 1,
+                "chunk_id": "1",
+                "chunk_text": "Acme Corp acquired Beta Ltd for $2 billion in 2025."
+            },
+            {
+                "document_name": "Financial_Report.pdf",
+                "page_number": 2,
+                "chunk_id": "2",
+                "chunk_text": "Acme Corp later opened a research center in London."
+            },
+            {
+                "document_name": "Financial_Report.pdf",
+                "page_number": 3,
+                "chunk_id": "3",
+                "chunk_text": "Beta Ltd previously employed 4,000 people."
+            }
+        ]
+        
+        question = "How much did Acme Corp pay to acquire Beta Ltd?"
+        ans = llm_service._generate_mock_answer(question, context_chunks)
+        
+        # Must directly answer $2 billion
+        self.assertIn("$2 billion", ans)
+        
+        # Must NOT include irrelevant London or employee count information
+        self.assertNotIn("London", ans)
+        self.assertNotIn("4,000", ans)
+
+    def test_supporting_citation_filtering(self):
+        # Test that citations only include supporting chunks, filtering out irrelevant retrieved chunks
+        context_chunks = [
+            {
+                "document_name": "Financial_Report.pdf",
+                "page_number": 1,
+                "chunk_id": "1",
+                "chunk_text": "Acme Corp acquired Beta Ltd for $2 billion in 2025."
+            },
+            {
+                "document_name": "Financial_Report.pdf",
+                "page_number": 2,
+                "chunk_id": "2",
+                "chunk_text": "Acme Corp later opened a research center in London."
+            }
+        ]
+        
+        answer = "Acme Corp acquired Beta Ltd for $2 billion in 2025."
+        sources = llm_service._compile_sources(context_chunks, answer)
+        
+        # Only page 1 (chunk 1) should be in supporting citations
+        self.assertEqual(len(sources), 1)
         self.assertEqual(sources[0]["page_number"], 1)
-        self.assertEqual(sources[1]["page_number"], 2)
 
     def test_out_of_scope_question(self):
         # Test handling of out-of-scope question with empty context
