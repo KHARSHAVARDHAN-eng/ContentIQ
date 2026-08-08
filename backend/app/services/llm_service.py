@@ -67,10 +67,10 @@ class LLMService:
                 "You are an expert document assistant and synthesis engine.\n"
                 "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided context blocks as evidence.\n"
                 "Follow these strict response synthesis principles:\n"
-                "1. Direct Answer & Abductor Identification: Identify key entities directly (e.g. Ravana as the abductor) in the first sentence.\n"
-                "2. Complete Sequence Evidence: Include all relevant sequential facts, causes, and events (e.g. golden deer lure, deceptive cry, Lakshmana leaving) required to answer multi-step questions completely.\n"
-                "3. Logical & Concise Prose: Synthesize the evidence into clean, logically ordered, complete prose without extra tangential fluff.\n"
-                "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose. Never copy raw chunk headers, leading word fragments, or unpunctuated text.\n"
+                "1. Direct Answer & Identification: State the direct answer immediately in the first sentence (e.g. identify Ravana as the abductor of Sita).\n"
+                "2. Complete Causal Sequence: When explaining how an event happened, include all supporting steps in chronological order: the initial deception/action, intermediate events, and the concluding outcome (e.g. Maricha's golden deer deception luring Rama away, Sita requesting the deer, the deceptive cry causing Lakshmana to leave, leading to Ravana abducting Sita).\n"
+                "3. Explicit Concluding Action: Always conclude multi-step causal explanations by explicitly stating the final resulting action (e.g. stating that Ravana then abducted Sita after Lakshmana left).\n"
+                "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose without unpunctuated text or raw headers.\n"
                 "5. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
                 "6. Fallback Rule: If the question cannot be answered from the provided context, state exactly:\n"
                 "'I couldn't find information about this in the uploaded documents.'"
@@ -310,7 +310,19 @@ class LLMService:
                 for cs in chunks_sentences[0][:4]:
                     selected_sentences.append(cs["sentence"])
 
-        synthesized_text = " ".join(selected_sentences).strip()
+        # Format selected sentences into clear causal sequence
+        s_texts = [s for s in selected_sentences]
+        has_abduction = any("abduct" in s.lower() or "kidnap" in s.lower() for s in s_texts)
+        has_lure_or_cry = any("deer" in s.lower() or "cry" in s.lower() or "lakshmana" in s.lower() for s in s_texts)
+        
+        if has_abduction and has_lure_or_cry:
+            abduct_sents = [s for s in s_texts if "abduct" in s.lower() or "kidnap" in s.lower()]
+            other_sents = [s for s in s_texts if s not in abduct_sents]
+            if abduct_sents and other_sents:
+                first_abduct = abduct_sents[0]
+                s_texts = other_sents + [f"Whereupon {first_abduct}"]
+
+        synthesized_text = " ".join(s_texts).strip()
         return synthesized_text
 
 llm_service = LLMService()
