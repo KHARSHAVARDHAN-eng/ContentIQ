@@ -184,6 +184,42 @@ class AnswerSynthesisQualityTest(unittest.TestCase):
             sources = llm_service._compile_sources(context_chunks, ans)
             self.assertEqual(len(sources), 0, f"Sources should be empty for query: {q}")
 
+    def test_multi_chunk_sequence_synthesis(self):
+        # Test multi-chunk sequence synthesis across page 5 (abduction) and page 8 (Hanuman in Lanka)
+        context_chunks = [
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 5,
+                "chunk_id": "1380",
+                "chunk_text": "Maricha disguised himself as a golden deer to lure Rama away. Sita requested the deer, and Lakshmana later left the hut after hearing a deceptive cry. Ravana seized the opportunity to abduct Sita."
+            },
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 7,
+                "chunk_id": "1390",
+                "chunk_text": "Rama and Lakshmana searched tirelessly, meeting Shabari and eventually Sugriva. Hanuman became Rama's devoted ally after recognizing his greatness."
+            },
+            {
+                "document_name": "Ramayana_Test.pdf",
+                "page_number": 8,
+                "chunk_id": "1401",
+                "chunk_text": "Hanuman discovered Sita in Ashoka Vatika, conveyed Rama's message, defeated many warriors, allowed himself to be captured, and set parts of Lanka ablaze before returning."
+            }
+        ]
+        
+        question = "Explain the sequence of events from Sita's abduction to Hanuman finding her in Lanka"
+        ans = llm_service._generate_mock_answer(question, context_chunks)
+        
+        # Verify both abduction details from Page 5 AND Hanuman finding her in Lanka from Page 8 are present
+        self.assertIn("abduct", ans.lower())
+        self.assertIn("Ashoka Vatika", ans)
+        
+        sources = llm_service._compile_sources(context_chunks, ans)
+        # Verify citations attach to multiple contributing chunks (Page 5 and Page 8)
+        page_numbers = {s["page_number"] for s in sources}
+        self.assertIn(5, page_numbers)
+        self.assertIn(8, page_numbers)
+
 if __name__ == "__main__":
     unittest.main()
 

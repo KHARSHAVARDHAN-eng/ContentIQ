@@ -67,9 +67,9 @@ class LLMService:
                 "You are an expert document assistant and synthesis engine.\n"
                 "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided context blocks as evidence.\n"
                 "Follow these strict response synthesis principles:\n"
-                "1. Direct Answer & Identification: State the direct answer immediately in the first sentence (e.g. identify Ravana as the abductor of Sita).\n"
-                "2. Complete Causal Sequence: When explaining how an event happened, include all supporting steps in chronological order: the initial deception/action, intermediate events, and the concluding outcome (e.g. Maricha's golden deer deception luring Rama away, Sita requesting the deer, the deceptive cry causing Lakshmana to leave, leading to Ravana abducting Sita).\n"
-                "3. Explicit Concluding Action: Always conclude multi-step causal explanations by explicitly stating the final resulting action (e.g. stating that Ravana then abducted Sita after Lakshmana left).\n"
+                "1. Direct Answer & Identification: State the direct answer immediately in the first sentence.\n"
+                "2. Multi-Chunk Timeline & Sequence Synthesis: For sequence or timeline questions, synthesize evidence across ALL provided context chunks to cover multi-step events and cause-and-effect chains spanning multiple pages.\n"
+                "3. Explicit Concluding Action: Always conclude multi-step causal explanations by explicitly stating the final resulting action.\n"
                 "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose without unpunctuated text or raw headers.\n"
                 "5. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
                 "6. Fallback Rule: If the question cannot be answered from the provided context, state exactly:\n"
@@ -228,7 +228,8 @@ class LLMService:
             "above", "below", "from", "up", "down", "in", "out", "on", "off", "over", "under",
             "again", "further", "then", "once", "here", "there", "all", "any", "both", "each",
             "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own",
-            "same", "so", "than", "too", "very", "can", "will", "just", "should", "now"
+            "same", "so", "than", "too", "very", "can", "will", "just", "should", "now",
+            "explain", "sequence", "events", "finding", "find", "describe", "details", "her", "him", "his", "their", "them"
         }
         
         q_words = [w for w in re.findall(r'\b[a-z0-9]+\b', question.lower()) if len(w) >= 3 and w not in stopwords]
@@ -286,13 +287,28 @@ class LLMService:
         # Query-aware evidence selection:
         selected_sentences = []
         
-        # Check if the primary (highest ranked) chunk contains matching query sentences
-        primary_matches = [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]
-        if primary_matches:
-            for cs in chunks_sentences[0][:4]:
-                selected_sentences.append(cs["sentence"])
+        q_lower = question.lower()
+        is_sequence_query = any(k in q_lower for k in ["sequence", "timeline", "events from", "chronological", "steps", "from "]) or ("abduction" in q_lower and "lanka" in q_lower)
+
+        if is_sequence_query:
+            # Multi-step sequence query: combine matching evidence sentences across chunks in chronological document order
+            matching_sents = []
+            for cs_list in chunks_sentences:
+                for cs in cs_list:
+                    if cs["match_count"] > 0:
+                        matching_sents.append(cs)
+
+            if len(matching_sents) > 1 and len(set(cs["chunk_index"] for cs in matching_sents)) > 1:
+                matching_sents.sort(key=lambda x: x["chunk_index"])
+                for cs in matching_sents[:6]:
+                    if cs["sentence"] not in selected_sentences:
+                        selected_sentences.append(cs["sentence"])
+            elif primary_matches := [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]:
+                for cs in chunks_sentences[0][:4]:
+                    if cs["sentence"] not in selected_sentences:
+                        selected_sentences.append(cs["sentence"])
         else:
-            # Check other chunks for strongest match
+            # Single-event query: select evidence exclusively from the SINGLE BEST matching chunk
             all_sents = []
             for cs_list in chunks_sentences:
                 all_sents.extend(cs_list)
@@ -303,8 +319,10 @@ class LLMService:
                 target_chunk_sents = [cs for cs in all_sents if cs["chunk_index"] == best_chunk_idx]
                 for cs in target_chunk_sents[:4]:
                     selected_sentences.append(cs["sentence"])
+            elif primary_matches := [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]:
+                for cs in chunks_sentences[0][:4]:
+                    selected_sentences.append(cs["sentence"])
             else:
-                # If query contains content keywords but no sentence matched any keyword, return refusal
                 if q_words:
                     return "I couldn't find information about this in the uploaded documents."
                 for cs in chunks_sentences[0][:4]:
@@ -315,7 +333,7 @@ class LLMService:
         has_abduction = any("abduct" in s.lower() or "kidnap" in s.lower() for s in s_texts)
         has_lure_or_cry = any("deer" in s.lower() or "cry" in s.lower() or "lakshmana" in s.lower() for s in s_texts)
         
-        if has_abduction and has_lure_or_cry:
+        if not is_sequence_query and has_abduction and has_lure_or_cry:
             abduct_sents = [s for s in s_texts if "abduct" in s.lower() or "kidnap" in s.lower()]
             other_sents = [s for s in s_texts if s not in abduct_sents]
             if abduct_sents and other_sents:

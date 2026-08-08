@@ -13,6 +13,19 @@ class OCRService:
             self._reader = easyocr.Reader(['en'], gpu=False)
         return self._reader
 
+    def clean_ocr_text(self, text: str) -> str:
+        if not text:
+            return ""
+        import re
+        # Clean trailing/leading underscores or noise symbols around words (e.g. "abduction_" -> "abduction")
+        cleaned = re.sub(r'(?<=\w)[_]+', '', text)
+        cleaned = re.sub(r'[_]+(?=\w)', '', cleaned)
+        # Clean standalone noise symbols between words like "Sita $ abduction" -> "Sita abduction"
+        cleaned = re.sub(r'\s+[\$|_~^\\@]+\s+', ' ', cleaned)
+        # Normalize multiple whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned
+
     def extract_text_from_image(self, pil_image: Image.Image) -> tuple[str, float]:
         """
         Extracts text content and average confidence from a PIL Image.
@@ -38,9 +51,10 @@ class OCRService:
                         texts.append(text_str)
                         confidences.append(float(conf))
                 
-                extracted_text = " ".join(texts)
+                raw_extracted_text = " ".join(texts)
+                cleaned_text = self.clean_ocr_text(raw_extracted_text)
                 avg_confidence = float(np.mean(confidences)) if confidences else 1.0
-                return extracted_text, avg_confidence
+                return cleaned_text, avg_confidence
             else:
                 return "", 1.0
 

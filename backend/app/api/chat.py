@@ -154,7 +154,26 @@ def grounded_chat(
                 fused_hits.append(hit_item)
                 
             fused_hits.sort(key=lambda x: x["score"], reverse=True)
-            raw_hits = fused_hits[:candidate_limit]
+            
+            # Deduplicate near-duplicate sliding window chunks to preserve candidate diversity
+            deduped_fused = []
+            seen_word_sets = []
+            import re
+            for h in fused_hits:
+                words = set(re.findall(r'\b[a-z0-9]+\b', h.get("chunk_text", "").lower()))
+                if not words:
+                    continue
+                is_dup = False
+                for seen in seen_word_sets:
+                    overlap = len(words & seen) / float(min(len(words), len(seen)))
+                    if len(words) >= 12 and len(seen) >= 12 and overlap > 0.75:
+                        is_dup = True
+                        break
+                if not is_dup:
+                    deduped_fused.append(h)
+                    seen_word_sets.append(words)
+
+            raw_hits = deduped_fused[:candidate_limit]
             
         except Exception as e:
             raise HTTPException(

@@ -64,21 +64,44 @@ class RerankingService:
                 reranked_ranking=original_ranking
             )
 
-        # 1. Model inference
+        # 1. Model inference with multi-clause evaluation for sequence queries
+        import re
+        clauses = [query]
+        from_to = re.search(r'from\s+(.+?)\s+to\s+(.+)', query, re.IGNORECASE)
+        if from_to:
+            clauses.append(from_to.group(1).strip())
+            clauses.append(from_to.group(2).strip())
+        elif ' and ' in query.lower():
+            parts = [p.strip() for p in re.split(r'\band\b', query, flags=re.IGNORECASE) if len(p.strip()) > 5]
+            clauses.extend(parts)
+        clauses = list(dict.fromkeys(clauses))
+
         model = self.get_model()
-        pairs = [[query, h["chunk_text"]] for h in hits]
         
+        all_pairs = []
+        hit_clause_counts = []
+        for h in hits:
+            text = h["chunk_text"]
+            pairs_for_hit = [[c, text] for c in clauses]
+            all_pairs.extend(pairs_for_hit)
+            hit_clause_counts.append(len(pairs_for_hit))
+
         inference_start = time.perf_counter()
-        raw_scores = model.predict(pairs, batch_size=settings.RERANK_BATCH_SIZE)
+        raw_scores = model.predict(all_pairs, batch_size=settings.RERANK_BATCH_SIZE)
         inference_latency = time.perf_counter() - inference_start
-        
+
+        raw_scores_list = [float(rs) for rs in (raw_scores if hasattr(raw_scores, '__iter__') else [raw_scores])]
+
         scored_hits = []
+        score_idx = 0
         for idx, h in enumerate(hits):
-            raw_score = float(raw_scores[idx])
-            prob_score = 1.0 / (1.0 + math.exp(-raw_score))
+            count = hit_clause_counts[idx]
+            hit_raw_scores = raw_scores_list[score_idx : score_idx + count]
+            score_idx += count
             
-            # Combine Reranker cross-encoder probability with original hybrid/dense score (70% reranker, 30% original)
-            # This ensures cross-encoder score noise cannot completely override top-1 dense/BM25 retrieval hits
+            probs = [1.0 / (1.0 + math.exp(-rs)) for rs in hit_raw_scores]
+            prob_score = max(probs)
+            
             orig_score = float(h.get("score", 0.0))
             combined_score = 0.70 * prob_score + 0.30 * orig_score
             
@@ -129,7 +152,24 @@ class RerankingService:
                 )
             )
 
-        final_hits = retained_hits[:top_k]
+        # Deduplicate near-duplicate sliding window chunks to ensure top_k contains diverse chunks across pages/sections
+        deduped_retained = []
+        seen_word_sets = []
+        for h in retained_hits:
+            words = set(re.findall(r'\b[a-z0-9]+\b', h.get("chunk_text", "").lower()))
+            if not words:
+                continue
+            is_dup = False
+            for seen in seen_word_sets:
+                overlap = len(words & seen) / float(min(len(words), len(seen)))
+                if len(words) >= 12 and len(seen) >= 12 and overlap > 0.75:
+                    is_dup = True
+                    break
+            if not is_dup:
+                deduped_retained.append(h)
+                seen_word_sets.append(words)
+
+        final_hits = deduped_retained[:top_k]
         final_cids = [str(h["chunk_id"]) for h in final_hits]
 
         total_latency = time.perf_counter() - start_time
