@@ -6,6 +6,7 @@ from PIL import Image
 from app.services.storage_service import storage_service
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
+from app.models.user import User
 from app.models.document import Document
 from app.models.document_page import DocumentPage
 from app.models.document_chunk import DocumentChunk
@@ -176,7 +177,7 @@ def ocr_document_processor_task(document_id: int):
 
                 splits, _ = adaptive_chunker.chunk_document(text, doc.name)
                 for split_text in splits:
-                    clean_text = split_text.strip()
+                    clean_text = ocr_service.clean_ocr_text(split_text)
                     if not clean_text:
                         continue
                     db_chunk = DocumentChunk(

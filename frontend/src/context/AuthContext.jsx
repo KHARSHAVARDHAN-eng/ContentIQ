@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
       delete axios.defaults.headers.common['Authorization'];
     }
 
-    const interceptor = axios.interceptors.request.use((config) => {
+    const reqInterceptor = axios.interceptors.request.use((config) => {
       const storedToken = localStorage.getItem('token');
       if (storedToken && !config.headers['Authorization']) {
         config.headers['Authorization'] = `Bearer ${storedToken}`;
@@ -27,7 +27,24 @@ export const AuthProvider = ({ children }) => {
       return config;
     });
 
-    return () => axios.interceptors.request.eject(interceptor);
+    const resInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      (err) => {
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          if (localStorage.getItem('token')) {
+            localStorage.removeItem('token');
+            setToken(null);
+            setUser(null);
+          }
+        }
+        return Promise.reject(err);
+      }
+    );
+
+    return () => {
+      axios.interceptors.request.eject(reqInterceptor);
+      axios.interceptors.response.eject(resInterceptor);
+    };
   }, [token]);
 
   const fetchUserProfile = async (authToken) => {

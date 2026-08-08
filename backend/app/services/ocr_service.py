@@ -17,12 +17,29 @@ class OCRService:
         if not text:
             return ""
         import re
-        # Clean trailing/leading underscores or noise symbols around words (e.g. "abduction_" -> "abduction")
-        cleaned = re.sub(r'(?<=\w)[_]+', '', text)
+        cleaned = text
+
+        # 1. Fix mixed-case noise inside words like 'sOrrow' -> 'sorrow', 'tO' -> 'to'
+        def fix_mixed_case(m):
+            w = m.group(0)
+            if w.isupper() or w.islower() or w.istitle():
+                return w
+            return w.lower()
+        cleaned = re.sub(r'\b[a-zA-Z]+\b', fix_mixed_case, cleaned)
+
+        # 2. Fix 0 inside words like 'g0' -> 'go', 't0' -> 'to'
+        cleaned = re.sub(r'\b([a-zA-Z]+)0([a-zA-Z]*)\b', r'\1o\2', cleaned)
+        cleaned = re.sub(r'\b0([a-zA-Z]+)\b', r'o\1', cleaned)
+
+        # 3. Fix possessive OCR noise: "Sita $" or "Sita _" before a word -> "Sita's"
+        cleaned = re.sub(r'(\b[a-zA-Z]{2,})\s+[\$|_]\s+(?=[a-zA-Z])', r"\1's ", cleaned)
+
+        # 4. Clean trailing/leading underscores or noise symbols around words (e.g. "abduction_" -> "abduction")
+        cleaned = re.sub(r'(?<=\w)[_]+', '', cleaned)
         cleaned = re.sub(r'[_]+(?=\w)', '', cleaned)
-        # Clean standalone noise symbols between words like "Sita $ abduction" -> "Sita abduction"
         cleaned = re.sub(r'\s+[\$|_~^\\@]+\s+', ' ', cleaned)
-        # Normalize multiple whitespace
+
+        # 5. Normalize multiple whitespace
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned
 
