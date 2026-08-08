@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-2-v2"
     RERANK_TOP_K: int = 5
     RERANK_BATCH_SIZE: int = 16
-    RERANK_SCORE_THRESHOLD: float = 0.0
+    RERANK_SCORE_THRESHOLD: float = 0.02
     RERANK_DEBUG_LOGGING: bool = True
     
     # Query Transformation Settings

@@ -307,5 +307,65 @@ class DocumentIQRegressionTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_06_unrelated_query_capital_of_france_rejection(self):
+        # Regression test for out-of-domain query 'What is the capital of France?'
+        from app.models.document import Document
+        from app.core.database import SessionLocal
+        from app.core.security import create_access_token
+
+        db = SessionLocal()
+        try:
+            ram_doc = db.query(Document).filter(Document.name.like("%Ramayana%"), Document.status == "INDEXED").first()
+            if ram_doc:
+                token = create_access_token(subject=ram_doc.user_id)
+                headers = {"Authorization": f"Bearer {token}"}
+
+                query = "What is the capital of France?"
+                chat_resp = requests.post(f"{BASE_URL}/chat", json={"question": query}, headers=headers)
+                self.assertEqual(chat_resp.status_code, 200)
+                chat_data = chat_resp.json()
+                answer = chat_data.get("answer", "")
+                citations = chat_data.get("citations", [])
+
+                # Must return refusal and no citations
+                self.assertTrue(any(p in answer.lower() for p in ["couldn't find information", "could not find"]))
+                self.assertEqual(len(citations), 0)
+        finally:
+            db.close()
+
+    def test_07_additional_unrelated_queries_rejection(self):
+        # Regression test for 3 additional unrelated queries
+        from app.models.document import Document
+        from app.core.database import SessionLocal
+        from app.core.security import create_access_token
+
+        db = SessionLocal()
+        try:
+            ram_doc = db.query(Document).filter(Document.name.like("%Ramayana%"), Document.status == "INDEXED").first()
+            if ram_doc:
+                token = create_access_token(subject=ram_doc.user_id)
+                headers = {"Authorization": f"Bearer {token}"}
+
+                unrelated_queries = [
+                    "What is the formula for quantum entanglement?",
+                    "Who won the 2024 FIFA World Cup?",
+                    "How do I bake a chocolate cake?"
+                ]
+                for query in unrelated_queries:
+                    chat_resp = requests.post(f"{BASE_URL}/chat", json={"question": query}, headers=headers)
+                    self.assertEqual(chat_resp.status_code, 200)
+                    chat_data = chat_resp.json()
+                    answer = chat_data.get("answer", "")
+                    citations = chat_data.get("citations", [])
+
+                    self.assertTrue(
+                        any(p in answer.lower() for p in ["couldn't find information", "could not find"]),
+                        f"Expected refusal for query: '{query}', got answer: '{answer}'"
+                    )
+                    self.assertEqual(len(citations), 0, f"Expected 0 citations for query: '{query}'")
+        finally:
+            db.close()
+
 if __name__ == "__main__":
     unittest.main()
+

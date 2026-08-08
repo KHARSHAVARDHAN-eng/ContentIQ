@@ -12,6 +12,11 @@ class ClaimExtractorService:
     def extract_claims(self, answer: str) -> List[Dict[str, Any]]:
         if not answer:
             return []
+
+        # Bypass claim extraction for refusal/out-of-domain messages
+        lower_ans = answer.lower()
+        if any(refusal in lower_ans for refusal in ["couldn't find information", "could not find", "not supported by retrieved evidence"]):
+            return []
             
         api_key = settings.GEMINI_API_KEY
         if api_key and settings.CLAIM_EXTRACTION_ENABLED:

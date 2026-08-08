@@ -34,10 +34,10 @@ class LLMService:
         return prompt
 
     def generate_answer(self, question: str, context_chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        # Handle cases where context is completely empty
+        # Handle cases where context is empty
         if not context_chunks:
             return {
-                "answer": "I could not find sufficient information in the uploaded documents.",
+                "answer": "I couldn't find information about this in the uploaded documents.",
                 "sources": [],
                 "confidence": 0.0
             }
@@ -48,11 +48,11 @@ class LLMService:
             # Safe local fallback mode if key is not configured
             print("Warning: GEMINI_API_KEY is not set. Running mock retrieval fallback.")
             mock_answer = self._generate_mock_answer(question, context_chunks)
-            sources = self._compile_sources(context_chunks)
+            sources = self._compile_sources(context_chunks, mock_answer)
             return {
                 "answer": mock_answer,
                 "sources": sources,
-                "confidence": self._calculate_confidence(context_chunks)
+                "confidence": self._calculate_confidence(context_chunks) if sources else 0.0
             }
 
         try:
@@ -161,9 +161,13 @@ class LLMService:
         if not context_chunks:
             return []
 
+        # Return empty sources if final_answer indicates information could not be found or is unsupported
+        if final_answer and any(phrase in final_answer.lower() for phrase in ["couldn't find information", "could not find", "not supported by retrieved evidence", "unsupported"]):
+            return []
+
         # Filter for chunks whose distinct content words actively support the final answer
         supporting_chunks = []
-        if final_answer and final_answer != "I could not find sufficient information in the uploaded documents.":
+        if final_answer:
             import re
             answer_words = set(re.findall(r'\b[a-z0-9]+\b', final_answer.lower()))
             for chunk in context_chunks:
@@ -180,8 +184,10 @@ class LLMService:
                 if len(distinct_matches) >= 3:
                     supporting_chunks.append(chunk)
 
-        # Fallback to top retrieved chunk if distinct matching didn't isolate supporting chunks
+        # Fallback to top retrieved chunk ONLY IF answer is actually grounded and not a refusal
         if not supporting_chunks:
+            if final_answer and any(phrase in final_answer.lower() for phrase in ["couldn't find information", "could not find"]):
+                return []
             supporting_chunks = context_chunks[:1] if context_chunks else []
 
         sources = []
@@ -209,7 +215,7 @@ class LLMService:
 
     def _generate_mock_answer(self, question: str, context_chunks: List[Dict[str, Any]]) -> str:
         if not context_chunks:
-            return "I could not find sufficient information in the uploaded documents."
+            return "I couldn't find information about this in the uploaded documents."
         
         import re
         
@@ -275,10 +281,9 @@ class LLMService:
                 chunks_sentences.append(c_sents)
 
         if not chunks_sentences:
-            return "I could not find sufficient information in the uploaded documents."
+            return "I couldn't find information about this in the uploaded documents."
 
         # Query-aware evidence selection:
-        # Prioritize top-ranked chunk evidence if it matches the query intent
         selected_sentences = []
         
         # Check if the primary (highest ranked) chunk contains matching query sentences
@@ -287,7 +292,7 @@ class LLMService:
             for cs in chunks_sentences[0][:2]:
                 selected_sentences.append(cs["sentence"])
         else:
-            # If primary chunk has no explicit keyword match, check other chunks for strongest match
+            # Check other chunks for strongest match
             all_sents = []
             for cs_list in chunks_sentences:
                 all_sents.extend(cs_list)
@@ -299,7 +304,9 @@ class LLMService:
                 for cs in target_chunk_sents[:2]:
                     selected_sentences.append(cs["sentence"])
             else:
-                # Default to top sentences from primary chunk
+                # If query contains content keywords but no sentence matched any keyword, return refusal
+                if q_words:
+                    return "I couldn't find information about this in the uploaded documents."
                 for cs in chunks_sentences[0][:2]:
                     selected_sentences.append(cs["sentence"])
 

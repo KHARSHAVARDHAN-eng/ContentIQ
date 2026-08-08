@@ -143,7 +143,47 @@ class AnswerSynthesisQualityTest(unittest.TestCase):
     def test_out_of_scope_question(self):
         # Test handling of out-of-scope question with empty context
         ans = llm_service._generate_mock_answer("What is quantum entanglement?", [])
-        self.assertEqual(ans, "I could not find sufficient information in the uploaded documents.")
+        self.assertIn("couldn't find information", ans.lower())
+
+    def test_unrelated_query_rejection_capital_of_france(self):
+        # Test that out-of-domain query 'What is the capital of France?' returns refusal when context contains Ramayana text
+        context_chunks = [
+            {
+                "document_name": "Ramayana_23_Page_Test_Document.pdf",
+                "page_number": 14,
+                "chunk_id": "140",
+                "chunk_text": "The epic has inspired literature, music, dance, theater, and visual arts across South and Southeast Asia.",
+                "score": 0.05
+            }
+        ]
+        ans = llm_service._generate_mock_answer("What is the capital of France?", context_chunks)
+        self.assertIn("couldn't find information", ans.lower())
+        
+        sources = llm_service._compile_sources(context_chunks, ans)
+        self.assertEqual(len(sources), 0)
+
+    def test_unrelated_queries_rejection_suite(self):
+        # Test 3 additional unrelated queries against irrelevant context
+        context_chunks = [
+            {
+                "document_name": "Ramayana_23_Page_Test_Document.pdf",
+                "page_number": 14,
+                "chunk_id": "140",
+                "chunk_text": "The epic has inspired literature, music, dance, theater, and visual arts across South and Southeast Asia.",
+                "score": 0.02
+            }
+        ]
+        unrelated_queries = [
+            "What is the formula for quantum entanglement?",
+            "Who won the 2024 FIFA World Cup?",
+            "How do I bake a chocolate cake?"
+        ]
+        for q in unrelated_queries:
+            ans = llm_service._generate_mock_answer(q, context_chunks)
+            self.assertIn("couldn't find information", ans.lower(), f"Failed to reject query: {q}")
+            sources = llm_service._compile_sources(context_chunks, ans)
+            self.assertEqual(len(sources), 0, f"Sources should be empty for query: {q}")
 
 if __name__ == "__main__":
     unittest.main()
+

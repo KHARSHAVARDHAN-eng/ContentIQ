@@ -95,12 +95,13 @@ def semantic_search(
             all_hits = []
             seen_chunks = set()
             
+            candidate_limit = max(10, retrieval_limit * 2)
             for q_idx, q in enumerate(search_queries):
                 hits, hr = hybrid_retriever.search(
                     db=db,
                     query=q,
                     user_doc_ids=user_doc_ids,
-                    limit=retrieval_limit
+                    limit=candidate_limit
                 )
                 all_hits.extend(hits)
                 # Keep primary hybrid_retrieval for response metadata
@@ -115,7 +116,7 @@ def semantic_search(
                 if cid not in seen_chunks:
                     seen_chunks.add(cid)
                     deduped_hits.append(h)
-            raw_hits = deduped_hits[:retrieval_limit]
+            raw_hits = deduped_hits[:candidate_limit]
             
         except Exception as e:
             raise HTTPException(

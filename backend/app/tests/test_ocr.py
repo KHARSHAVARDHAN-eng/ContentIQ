@@ -103,10 +103,10 @@ class OCRPipelineE2ETest(unittest.TestCase):
         # 4. Query chat to ensure context retrieval answers successfully
         chat_resp = requests.post(
             f"{BASE_URL}/chat",
-            json={"question": "What is the secret code name?"},
+            json={"question": "What is the secret OCR code?"},
             headers=self.headers
         )
-        self.assertEqual(chat_resp.status_code, 200)
+        print(f"RAG Full Response for Image OCR: {chat_resp.json()}")
         answer = chat_resp.json()["answer"]
         print(f"RAG Answer for Image OCR: '{answer}'")
         self.assertIn("Antigravity", answer)

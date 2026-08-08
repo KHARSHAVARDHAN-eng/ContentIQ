@@ -120,12 +120,13 @@ def grounded_chat(
             # Collect hits per query list to prevent specific subquery results from being overridden
             query_hits_lists = []
             
+            candidate_limit = max(10, retrieval_limit * 2)
             for q_idx, q in enumerate(search_queries):
                 hits, hr = hybrid_retriever.search(
                     db=db,
                     query=q,
                     user_doc_ids=user_doc_ids,
-                    limit=retrieval_limit
+                    limit=candidate_limit
                 )
                 query_hits_lists.append(hits)
                 if q_idx == 0:
@@ -153,7 +154,7 @@ def grounded_chat(
                 fused_hits.append(hit_item)
                 
             fused_hits.sort(key=lambda x: x["score"], reverse=True)
-            raw_hits = fused_hits[:retrieval_limit]
+            raw_hits = fused_hits[:candidate_limit]
             
         except Exception as e:
             raise HTTPException(

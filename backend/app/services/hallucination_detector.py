@@ -25,13 +25,13 @@ class RulesBasedHallucinationDetector(BaseHallucinationDetector):
         chunks: List[Dict[str, Any]], 
         answer: str
     ) -> HallucinationDetectionResult:
-        if not answer or answer.strip() == "":
+        if not answer or answer.strip() == "" or any(p in answer.lower() for p in ["couldn't find information", "could not find", "not supported"]):
             return HallucinationDetectionResult(
                 hallucination_status="CLEAN",
                 confidence_score=1.0,
                 unsupported_claims=[],
                 grounded_claims=[],
-                reasoning="Empty answer response; bypassed grounding check."
+                reasoning="Refusal response; bypassed grounding check."
             )
             
         sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', answer) if s.strip()]
@@ -116,13 +116,13 @@ class LLMHallucinationDetector(BaseHallucinationDetector):
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY is not set.")
 
-        if not answer or answer.strip() == "":
+        if not answer or answer.strip() == "" or any(p in answer.lower() for p in ["couldn't find information", "could not find", "not supported"]):
             return HallucinationDetectionResult(
                 hallucination_status="CLEAN",
                 confidence_score=1.0,
                 unsupported_claims=[],
                 grounded_claims=[],
-                reasoning="Empty answer response; bypassed grounding check."
+                reasoning="Refusal response; bypassed grounding check."
             )
 
         genai.configure(api_key=api_key)
