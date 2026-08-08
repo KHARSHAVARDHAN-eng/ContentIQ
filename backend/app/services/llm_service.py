@@ -171,7 +171,7 @@ class LLMService:
             import re
             answer_words = set(re.findall(r'\b[a-z0-9]+\b', final_answer.lower()))
             for chunk in context_chunks:
-                chunk_text = chunk.get("chunk_text", "").lower()
+                chunk_text = (chunk.get("chunk_text") or "").lower()
                 c_words = set(re.findall(r'\b[a-z0-9]+\b', chunk_text))
                 distinct_matches = [
                     w for w in c_words 
@@ -192,16 +192,16 @@ class LLMService:
 
         sources = []
         for idx, chunk in enumerate(supporting_chunks):
-            chunk_id_val = chunk.get("chunk_id", 0)
+            chunk_id_val = chunk.get("chunk_id")
             try:
-                chunk_idx_val = int(chunk_id_val)
+                chunk_idx_val = int(chunk_id_val if chunk_id_val is not None else 0)
             except (ValueError, TypeError):
                 chunk_idx_val = idx
             sources.append({
-                "document_name": chunk.get("document_name", "Unknown"),
-                "page_number": chunk.get("page_number", 1),
+                "document_name": str(chunk.get("document_name") or "Unknown"),
+                "page_number": int(chunk.get("page_number") or 1),
                 "chunk_index": chunk_idx_val,
-                "chunk_text": chunk.get("chunk_text", "")
+                "chunk_text": str(chunk.get("chunk_text") or "")
             })
         return sources
 

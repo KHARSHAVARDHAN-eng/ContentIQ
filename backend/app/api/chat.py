@@ -270,30 +270,30 @@ def grounded_chat(
         from app.services.context_compressor import context_compressor
         full_raw_hits = []
         for hit in raw_hits:
-            doc_id = hit["document_id"]
+            doc_id = hit.get("document_id")
             full_raw_hits.append({
-                "chunk_id": hit["chunk_id"],
-                "document_id": doc_id,
-                "document_name": doc_id_to_name.get(doc_id, "Unknown"),
-                "page_number": hit["page_number"],
-                "chunk_text": hit["chunk_text"],
-                "score": hit["score"]
+                "chunk_id": str(hit.get("chunk_id") if hit.get("chunk_id") is not None else "0"),
+                "document_id": doc_id or 0,
+                "document_name": doc_id_to_name.get(doc_id) or "Unknown",
+                "page_number": int(hit.get("page_number") or 1),
+                "chunk_text": str(hit.get("chunk_text") or ""),
+                "score": float(hit.get("score") or 0.0)
             })
             
         context_compression = context_compressor.compress(retrieval_query, full_raw_hits)
         
         # Only compressed context is passed to LLM Prompt Builder
-        graph_retrieved_map = {str(hit["chunk_id"]): hit.get("is_graph_retrieved", False) for hit in raw_hits}
+        graph_retrieved_map = {str(hit.get("chunk_id")): hit.get("is_graph_retrieved", False) for hit in raw_hits}
         context_chunks = []
         for cc in context_compression.compressed_chunks:
             cid_str = str(cc.chunk_id)
             context_chunks.append({
-                "chunk_id": cc.chunk_id,
-                "document_id": cc.document_id,
-                "document_name": cc.document_name,
-                "page_number": cc.page_number,
-                "chunk_text": cc.chunk_text,
-                "score": cc.score,
+                "chunk_id": str(cc.chunk_id if cc.chunk_id is not None else "0"),
+                "document_id": cc.document_id or 0,
+                "document_name": str(cc.document_name or "Unknown"),
+                "page_number": int(cc.page_number or 1),
+                "chunk_text": str(cc.chunk_text or ""),
+                "score": float(cc.score or 0.0),
                 "is_graph_retrieved": graph_retrieved_map.get(cid_str, False)
             })
     except Exception as e:
@@ -301,14 +301,14 @@ def grounded_chat(
         # Fallback logic
         context_chunks = []
         for hit in raw_hits:
-            doc_id = hit["document_id"]
+            doc_id = hit.get("document_id")
             context_chunks.append({
-                "chunk_id": hit["chunk_id"],
-                "document_id": doc_id,
-                "document_name": doc_id_to_name.get(doc_id, "Unknown"),
-                "page_number": hit["page_number"],
-                "chunk_text": hit["chunk_text"],
-                "score": hit["score"],
+                "chunk_id": str(hit.get("chunk_id") if hit.get("chunk_id") is not None else "0"),
+                "document_id": doc_id or 0,
+                "document_name": doc_id_to_name.get(doc_id) or "Unknown",
+                "page_number": int(hit.get("page_number") or 1),
+                "chunk_text": str(hit.get("chunk_text") or ""),
+                "score": float(hit.get("score") or 0.0),
                 "is_graph_retrieved": hit.get("is_graph_retrieved", False)
             })
 
@@ -356,13 +356,13 @@ def grounded_chat(
 
     # Format output citations conforming strictly to Citation schema
     citations = []
-    for source in res["sources"]:
+    for source in res.get("sources", []):
         citations.append(
             Citation(
-                document_name=source["document_name"],
-                page_number=source["page_number"],
-                chunk_index=source["chunk_index"],
-                chunk_text=source["chunk_text"]
+                document_name=str(source.get("document_name") or "Unknown"),
+                page_number=int(source.get("page_number") or 1),
+                chunk_index=int(source.get("chunk_index") or 0),
+                chunk_text=str(source.get("chunk_text") or "")
             )
         )
 

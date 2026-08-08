@@ -128,7 +128,7 @@ class RerankingService:
         top_k = settings.RERANK_TOP_K
         
         for rerank_pos, h in enumerate(scored_hits):
-            cid = str(h["chunk_id"])
+            cid = str(h.get("chunk_id") if h.get("chunk_id") is not None else "0")
             prob_score = h["rerank_score"]
             orig_rank = h["_orig_rank"]
             
@@ -144,11 +144,11 @@ class RerankingService:
             metadata_hits.append(
                 RerankedHitMetadata(
                     chunk_id=cid,
-                    original_rank=orig_rank,
-                    reranked_position=rerank_pos,
-                    reranker_score=prob_score,
-                    status=status_lbl,
-                    chunk_text=h.get("chunk_text", "")
+                    original_rank=orig_rank or 0,
+                    reranked_position=rerank_pos or 0,
+                    reranker_score=float(prob_score if prob_score is not None else 0.0),
+                    status=str(status_lbl or "retained"),
+                    chunk_text=str(h.get("chunk_text") or "")
                 )
             )
 
@@ -156,7 +156,7 @@ class RerankingService:
         deduped_retained = []
         seen_word_sets = []
         for h in retained_hits:
-            words = set(re.findall(r'\b[a-z0-9]+\b', h.get("chunk_text", "").lower()))
+            words = set(re.findall(r'\b[a-z0-9]+\b', (h.get("chunk_text") or "").lower()))
             if not words:
                 continue
             is_dup = False
@@ -170,7 +170,7 @@ class RerankingService:
                 seen_word_sets.append(words)
 
         final_hits = deduped_retained[:top_k]
-        final_cids = [str(h["chunk_id"]) for h in final_hits]
+        final_cids = [str(h.get("chunk_id") if h.get("chunk_id") is not None else "0") for h in final_hits]
 
         total_latency = time.perf_counter() - start_time
 
@@ -186,7 +186,7 @@ class RerankingService:
             for r_pos, h in enumerate(scored_hits):
                 status_lbl = "RETAINED" if h["rerank_score"] >= threshold else "DISCARDED"
                 logger.info(
-                    f" - {status_lbl}: Chunk {h['chunk_id']} | Original Rank {h['_orig_rank']} -> Rerank Position {r_pos} | "
+                    f" - {status_lbl}: Chunk {h.get('chunk_id')} | Original Rank {h['_orig_rank']} -> Rerank Position {r_pos} | "
                     f"Base Score: {hits[h['_orig_rank']].get('score', 0.0):.4f} -> Rerank Score: {h['rerank_score']:.4f}"
                 )
             logger.info("---------------------------------------\n")
@@ -202,16 +202,16 @@ class RerankingService:
 
         output_hits = []
         for h in final_hits:
-            cid = h["chunk_id"]
+            cid = h.get("chunk_id", 0)
             if isinstance(cid, str) and cid.isdigit():
                 cid = int(cid)
             output_hits.append({
                 "chunk_id": cid,
-                "document_id": h["document_id"],
-                "page_number": h["page_number"],
-                "chunk_text": h["chunk_text"],
-                "score": h["score"],
-                "is_graph_retrieved": h.get("is_graph_retrieved", False)
+                "document_id": h.get("document_id") or 0,
+                "page_number": int(h.get("page_number") or 1),
+                "chunk_text": str(h.get("chunk_text") or ""),
+                "score": float(h.get("score") or 0.0),
+                "is_graph_retrieved": bool(h.get("is_graph_retrieved", False))
             })
 
         return output_hits, result_obj
