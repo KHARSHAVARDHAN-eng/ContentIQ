@@ -301,8 +301,10 @@ class DocumentIQRegressionTest(unittest.TestCase):
                 answer = chat_data.get("answer", "")
                 citations = chat_data.get("citations", [])
 
-                # Verify answer identifies Ravana and abducting/kidnapping Sita
+                # Verify answer identifies Ravana and explains the complete sequence
                 self.assertTrue("Ravana" in answer or "abduct" in answer.lower() or "kidnap" in answer.lower())
+                self.assertTrue("deer" in answer.lower() or "maricha" in answer.lower())
+                self.assertTrue("cry" in answer.lower() or "lakshmana" in answer.lower() or "left" in answer.lower())
                 self.assertGreater(len(citations), 0)
         finally:
             db.close()

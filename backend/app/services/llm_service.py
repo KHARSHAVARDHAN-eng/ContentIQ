@@ -67,13 +67,13 @@ class LLMService:
                 "You are an expert document assistant and synthesis engine.\n"
                 "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided context blocks as evidence.\n"
                 "Follow these strict response synthesis principles:\n"
-                "1. Answer Only What Is Asked: Focus exclusively on answering the user's specific question. State the direct answer immediately in the first sentence.\n"
-                "2. Include Only Relevant Evidence: Include ONLY facts and details that are directly required to explain or support the answer to THIS specific question.\n"
-                "3. Exclude Tangential Facts: Do NOT append extra or tangential facts from retrieved context blocks merely because they mention related entities or events. Once the user's question is fully answered, STOP immediately.\n"
+                "1. Direct Answer & Abductor Identification: Identify key entities directly (e.g. Ravana as the abductor) in the first sentence.\n"
+                "2. Complete Sequence Evidence: Include all relevant sequential facts, causes, and events (e.g. golden deer lure, deceptive cry, Lakshmana leaving) required to answer multi-step questions completely.\n"
+                "3. Logical & Concise Prose: Synthesize the evidence into clean, logically ordered, complete prose without extra tangential fluff.\n"
                 "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose. Never copy raw chunk headers, leading word fragments, or unpunctuated text.\n"
                 "5. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
                 "6. Fallback Rule: If the question cannot be answered from the provided context, state exactly:\n"
-                "'I could not find sufficient information in the uploaded documents.'"
+                "'I couldn't find information about this in the uploaded documents.'"
             )
             
             model = genai.GenerativeModel(
@@ -289,7 +289,7 @@ class LLMService:
         # Check if the primary (highest ranked) chunk contains matching query sentences
         primary_matches = [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]
         if primary_matches:
-            for cs in chunks_sentences[0][:2]:
+            for cs in chunks_sentences[0][:4]:
                 selected_sentences.append(cs["sentence"])
         else:
             # Check other chunks for strongest match
@@ -301,13 +301,13 @@ class LLMService:
             if all_sents and all_sents[0]["match_count"] > 0:
                 best_chunk_idx = all_sents[0]["chunk_index"]
                 target_chunk_sents = [cs for cs in all_sents if cs["chunk_index"] == best_chunk_idx]
-                for cs in target_chunk_sents[:2]:
+                for cs in target_chunk_sents[:4]:
                     selected_sentences.append(cs["sentence"])
             else:
                 # If query contains content keywords but no sentence matched any keyword, return refusal
                 if q_words:
                     return "I couldn't find information about this in the uploaded documents."
-                for cs in chunks_sentences[0][:2]:
+                for cs in chunks_sentences[0][:4]:
                     selected_sentences.append(cs["sentence"])
 
         synthesized_text = " ".join(selected_sentences).strip()
