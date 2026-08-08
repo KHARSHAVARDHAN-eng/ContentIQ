@@ -11,13 +11,23 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Set axios global Authorization header
+  // Set axios global Authorization header & request interceptor
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete axios.defaults.headers.common['Authorization'];
     }
+
+    const interceptor = axios.interceptors.request.use((config) => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken && !config.headers['Authorization']) {
+        config.headers['Authorization'] = `Bearer ${storedToken}`;
+      }
+      return config;
+    });
+
+    return () => axios.interceptors.request.eject(interceptor);
   }, [token]);
 
   const fetchUserProfile = async (authToken) => {
