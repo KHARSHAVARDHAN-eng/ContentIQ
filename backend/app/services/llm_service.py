@@ -225,20 +225,21 @@ class LLMService:
             "is", "was", "were", "are", "been", "be", "have", "has", "had", "do", "does", "did",
             "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by",
             "about", "against", "between", "into", "through", "during", "before", "after",
-            "above", "below", "from", "up", "down", "in", "out", "on", "off", "over", "under",
+            "above", "below", "from", "up", "down", "out", "off", "over", "under",
             "again", "further", "then", "once", "here", "there", "all", "any", "both", "each",
             "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own",
             "same", "so", "than", "too", "very", "can", "will", "just", "should", "now",
             "explain", "sequence", "events", "finding", "find", "describe", "details", "her", "him", "his", "their", "them"
         }
         
-        q_words = [w for w in re.findall(r'\b[a-z0-9]+\b', question.lower()) if len(w) >= 3 and w not in stopwords]
+        q_lower = question.lower()
+        q_words = [w for w in re.findall(r'\b[a-z0-9]+\b', q_lower) if len(w) >= 3 and w not in stopwords]
         
         from app.services.context_compressor import context_compressor
 
-        # Group sentences by chunk
-        chunks_sentences = []
-        seen_lower = set()
+        # Extract clean clauses across chunks
+        all_clauses = []
+        seen_norm = set()
 
         for chunk_idx, chunk in enumerate(context_chunks[:5]):
             text = chunk.get("chunk_text", "").strip()
@@ -246,101 +247,76 @@ class LLMService:
                 continue
             
             cleaned_text = context_compressor._clean_chunk_boundaries(text)
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', cleaned_text) if s.strip()]
+            # Split on periods, semicolons, exclamation, question marks, or newlines
+            raw_clauses = [c.strip() for c in re.split(r'(?<=[.!?;\n])\s+', cleaned_text) if c.strip()]
             
-            c_sents = []
-            for s in sentences:
-                if not re.search(r'[.!?]$', s):
-                    s = s + "."
-                
-                norm = re.sub(r'[^\w\s]', '', s.lower()).strip()
-                if not norm or len(s.split()) < 3:
+            for c in raw_clauses:
+                c_clean = c.strip()
+                if not c_clean or len(c_clean.split()) < 3:
                     continue
-                
-                is_dup = False
-                for existing in list(seen_lower):
-                    if norm in existing or existing in norm:
-                        is_dup = True
-                        break
-                
-                if is_dup:
+
+                norm = re.sub(r'[^\w\s]', '', c_clean.lower()).strip()
+                if not norm or norm in seen_norm:
                     continue
-                
-                seen_lower.add(norm)
-                
-                s_words = set(re.findall(r'\b[a-z0-9]+\b', norm))
-                match_count = sum(1 for qw in q_words if qw in s_words)
-                
-                c_sents.append({
-                    "sentence": s,
+                seen_norm.add(norm)
+
+                c_words = set(re.findall(r'\b[a-z0-9]+\b', norm))
+                match_count = sum(1 for qw in q_words if qw in c_words)
+
+                all_clauses.append({
+                    "clause": c_clean,
                     "norm": norm,
+                    "words": c_words,
                     "match_count": match_count,
                     "chunk_index": chunk_idx
                 })
 
-            if c_sents:
-                chunks_sentences.append(c_sents)
-
-        if not chunks_sentences:
+        if not all_clauses:
             return "I couldn't find information about this in the uploaded documents."
 
-        # Query-aware evidence selection:
-        selected_sentences = []
-        
-        q_lower = question.lower()
-        is_sequence_query = any(k in q_lower for k in ["sequence", "timeline", "events from", "chronological", "steps", "from "]) or ("abduction" in q_lower and "lanka" in q_lower)
+        # Filter clauses matching query terms
+        matching_clauses = [cs for cs in all_clauses if cs["match_count"] > 0]
+        if not matching_clauses:
+            return "I couldn't find information about this in the uploaded documents."
+
+        is_sequence_query = any(k in q_lower for k in ["sequence", "timeline", "events", "chronological", "steps", "after", "from "])
 
         if is_sequence_query:
-            # Multi-step sequence query: combine matching evidence sentences across chunks in chronological document order
-            matching_sents = []
-            for cs_list in chunks_sentences:
-                for cs in cs_list:
-                    if cs["match_count"] > 0:
-                        matching_sents.append(cs)
-
-            if len(matching_sents) > 1 and len(set(cs["chunk_index"] for cs in matching_sents)) > 1:
-                matching_sents.sort(key=lambda x: x["chunk_index"])
-                for cs in matching_sents[:6]:
-                    if cs["sentence"] not in selected_sentences:
-                        selected_sentences.append(cs["sentence"])
-            elif primary_matches := [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]:
-                for cs in chunks_sentences[0][:4]:
-                    if cs["sentence"] not in selected_sentences:
-                        selected_sentences.append(cs["sentence"])
+            # Multi-step sequence query: sort matching clauses chronologically by chunk index
+            matching_clauses.sort(key=lambda x: x["chunk_index"])
+            selected = []
+            for cs in matching_clauses[:5]:
+                clause_text = cs["clause"]
+                if not re.search(r'[.!?]$', clause_text):
+                    clause_text += "."
+                if clause_text not in selected:
+                    selected.append(clause_text)
+            return " ".join(selected).strip()
         else:
-            # Single-event query: select evidence exclusively from the SINGLE BEST matching chunk
-            all_sents = []
-            for cs_list in chunks_sentences:
-                all_sents.extend(cs_list)
+            # Single-topic focused query: prioritize clauses containing primary query entities from the best matching chunk
+            key_entities = [w for w in q_words if w not in ["did", "happen", "does", "what", "who", "how", "action", "actions"]]
             
-            all_sents.sort(key=lambda x: (x["match_count"], -x["chunk_index"]), reverse=True)
-            if all_sents and all_sents[0]["match_count"] > 0:
-                best_chunk_idx = all_sents[0]["chunk_index"]
-                target_chunk_sents = [cs for cs in all_sents if cs["chunk_index"] == best_chunk_idx]
-                for cs in target_chunk_sents[:4]:
-                    selected_sentences.append(cs["sentence"])
-            elif primary_matches := [cs for cs in chunks_sentences[0] if cs["match_count"] > 0]:
-                for cs in chunks_sentences[0][:4]:
-                    selected_sentences.append(cs["sentence"])
-            else:
-                if q_words:
-                    return "I couldn't find information about this in the uploaded documents."
-                for cs in chunks_sentences[0][:4]:
-                    selected_sentences.append(cs["sentence"])
+            focused_clauses = []
+            if key_entities:
+                for cs in matching_clauses:
+                    if any(ke in cs["words"] for ke in key_entities):
+                        focused_clauses.append(cs)
 
-        # Format selected sentences into clear causal sequence
-        s_texts = [s for s in selected_sentences]
-        has_abduction = any("abduct" in s.lower() or "kidnap" in s.lower() for s in s_texts)
-        has_lure_or_cry = any("deer" in s.lower() or "cry" in s.lower() or "lakshmana" in s.lower() for s in s_texts)
-        
-        if not is_sequence_query and has_abduction and has_lure_or_cry:
-            abduct_sents = [s for s in s_texts if "abduct" in s.lower() or "kidnap" in s.lower()]
-            other_sents = [s for s in s_texts if s not in abduct_sents]
-            if abduct_sents and other_sents:
-                first_abduct = abduct_sents[0]
-                s_texts = other_sents + [f"Whereupon {first_abduct}"]
+            if not focused_clauses:
+                focused_clauses = matching_clauses
 
-        synthesized_text = " ".join(s_texts).strip()
-        return synthesized_text
+            focused_clauses.sort(key=lambda x: (x["match_count"], -x["chunk_index"]), reverse=True)
+            
+            best_chunk_idx = focused_clauses[0]["chunk_index"]
+            best_chunk_clauses = [cs for cs in focused_clauses if cs["chunk_index"] == best_chunk_idx]
+            
+            selected = []
+            for cs in best_chunk_clauses[:3]:
+                clause_text = cs["clause"]
+                if not re.search(r'[.!?]$', clause_text):
+                    clause_text += "."
+                if clause_text not in selected:
+                    selected.append(clause_text)
+            return " ".join(selected).strip()
 
 llm_service = LLMService()

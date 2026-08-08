@@ -343,9 +343,8 @@ class ContextCompressorService:
     def _clean_chunk_boundaries(self, text: str) -> str:
         """
         Document-agnostic boundary cleanup:
-        1. If a chunk starts mid-sentence/mid-word (i.e. starts with a lowercase letter),
-           discard the broken leading sentence fragment up to the first complete sentence boundary (. ! ? \n).
-        2. If a chunk ends with an unpunctuated trailing fragment, trim back to the last complete sentence boundary.
+        1. If a chunk starts mid-word/mid-sentence (e.g. lowercase token), trim broken leading fragment up to sentence boundary.
+        2. Clean incomplete trailing fragment if it ends without sentence-ending punctuation (. ! ?).
         """
         if not text:
             return ""
@@ -353,17 +352,17 @@ class ContextCompressorService:
         cleaned = text.strip()
 
         # 1. If text starts with a lowercase letter (indicating chunking split a sentence mid-stream),
-        # discard the broken leading fragment before the first sentence-ending punctuation mark.
+        # discard broken leading sentence fragment up to the first complete sentence boundary (. ! ? followed by space & Capital letter).
         if cleaned and cleaned[0].islower():
-            punct_indices = [i for i in [cleaned.find('.'), cleaned.find('!'), cleaned.find('?')] if i != -1]
-            if punct_indices:
-                first_punct_idx = min(punct_indices)
-                if first_punct_idx < len(cleaned) - 1:
-                    cleaned = cleaned[first_punct_idx + 1:].strip()
-                else:
-                    cleaned = cleaned[0].upper() + cleaned[1:]
+            match = re.search(r'[\.!\?]\s+(?=[A-Z])', cleaned)
+            if match:
+                cleaned = cleaned[match.end():].strip()
             else:
-                cleaned = cleaned[0].upper() + cleaned[1:]
+                first_space = cleaned.find(' ')
+                if 0 < first_space < 20:
+                    cleaned = cleaned[first_space + 1:].strip()
+                if cleaned:
+                    cleaned = cleaned[0].upper() + cleaned[1:]
 
         # 2. Clean incomplete trailing fragment if it ends without sentence-ending punctuation (. ! ?)
         last_punct_idx = max(cleaned.rfind('.'), cleaned.rfind('!'), cleaned.rfind('?'))
@@ -405,8 +404,8 @@ class ContextCompressorService:
             # Pre-clean boundaries to eliminate partial leading/trailing word fragments
             text = self._clean_chunk_boundaries(raw_text)
 
-            # Split into sentences using regex
-            raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+            # Split into sentences/clauses using regex (excluding colon splits to preserve key-value phrases)
+            raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?;\n])\s+', text) if s.strip()]
             kept_chunk_sentences = []
 
             for s in raw_sentences:
