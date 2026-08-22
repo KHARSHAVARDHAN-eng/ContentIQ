@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Satoshi", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-bevellier: "Bevellier", sans-serif;
+  --font-bevellier: "Instrument Serif", Georgia, serif;
   
   --color-perplexity-bg: #F8F4EC;
   --color-perplexity-sidebar: #FCFAF6;
@@ -49,19 +50,21 @@ html, body {
 
 h1, .h1 {
   font-family: var(--font-bevellier);
-  font-weight: 800;
+  font-weight: 400;
+  letter-spacing: -0.025em;
   color: #111111;
 }
 
 h2, .h2 {
   font-family: var(--font-bevellier);
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   color: #111111;
 }
 
 h3, .h3 {
   font-family: var(--font-bevellier);
-  font-weight: 600;
+  font-weight: 400;
   color: #111111;
 }
 
