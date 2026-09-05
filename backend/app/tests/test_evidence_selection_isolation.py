@@ -69,6 +69,14 @@ class EvidenceSelectionIsolationTest(unittest.TestCase):
 
     def test_qdrant_collection_isolation(self):
         # Verify vector_store supports creating and searching isolated collections (e.g. research_fixed vs research_adaptive)
+        try:
+            vector_store.client.delete_collection("research_fixed")
+        except Exception:
+            pass
+        try:
+            vector_store.client.delete_collection("research_adaptive")
+        except Exception:
+            pass
         vector_store.create_collection(collection_name="research_fixed", vector_size=384)
         vector_store.create_collection(collection_name="research_adaptive", vector_size=384)
         

@@ -66,7 +66,8 @@ class VectorStoreService:
         page_number: int,
         chunk_text: str,
         vector: List[float],
-        collection_name: str = "document_chunks"
+        collection_name: str = "document_chunks",
+        document_name: str = "Unknown"
     ):
         print(f"Qdrant: Upserting chunk {chunk_id} for document {document_id}...")
         self.client.upsert(
@@ -78,6 +79,7 @@ class VectorStoreService:
                     payload={
                         "chunk_id": chunk_id,
                         "document_id": document_id,
+                        "document_name": document_name,
                         "page_number": page_number,
                         "chunk_text": chunk_text
                     }
@@ -92,7 +94,7 @@ class VectorStoreService:
     ):
         """
         Upsert multiple chunk points in a single request for high performance.
-        Each item in points_data should have keys: chunk_id, document_id, page_number, chunk_text, vector.
+        Each item in points_data should have keys: chunk_id, document_id, document_name, page_number, chunk_text, vector.
         """
         if not points_data:
             return
@@ -107,6 +109,7 @@ class VectorStoreService:
                     payload={
                         "chunk_id": item["chunk_id"],
                         "document_id": item["document_id"],
+                        "document_name": item.get("document_name", "Unknown"),
                         "page_number": item["page_number"],
                         "chunk_text": item["chunk_text"]
                     }
@@ -164,6 +167,7 @@ class VectorStoreService:
             hits.append({
                 "chunk_id": hit.payload.get("chunk_id"),
                 "document_id": hit.payload.get("document_id"),
+                "document_name": hit.payload.get("document_name", "Unknown"),
                 "page_number": hit.payload.get("page_number"),
                 "chunk_text": hit.payload.get("chunk_text"),
                 "score": hit.score

@@ -235,6 +235,7 @@ def ocr_document_processor_task(document_id: int):
                     points_data.append({
                         "chunk_id": chunk.id,
                         "document_id": doc.id,
+                        "document_name": doc.name,
                         "page_number": chunk.page_number,
                         "chunk_text": chunk.chunk_text,
                         "vector": vector

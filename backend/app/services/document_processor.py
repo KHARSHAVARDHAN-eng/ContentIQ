@@ -204,6 +204,7 @@ def process_document_task(document_id: int, collection_name: str = "document_chu
                     points_data.append({
                         "chunk_id": chunk.id,
                         "document_id": doc.id,
+                        "document_name": doc.name,
                         "page_number": chunk.page_number,
                         "chunk_text": chunk.chunk_text,
                         "vector": vector

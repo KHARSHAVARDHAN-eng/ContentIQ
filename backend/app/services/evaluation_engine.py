@@ -24,85 +24,196 @@ class EvaluationEngineService:
         context_chunks: List[Dict[str, Any]],
         pipeline_outputs: Dict[str, Any],
         ground_truth: Optional[str] = None,
-        reference_documents: Optional[List[str]] = None
+        reference_documents: Optional[List[str]] = None,
+        reference_evidence: Optional[List[str]] = None
     ) -> EvaluationResult:
         start_time = time.time()
 
         if not answer:
             return self._empty_evaluation(start_time)
 
-        # 1. Individual Metric Calculations
         metrics_dict: Dict[str, MetricResult] = {}
 
-        # A. Faithfulness
-        faithfulness = 1.0
-        hallucination_detection = pipeline_outputs.get("hallucination_detection")
-        if hallucination_detection:
-            h_status = getattr(hallucination_detection, "hallucination_status", "CLEAN")
-            if h_status == "FAILED":
-                faithfulness = 0.0
-            elif h_status == "WARNING":
-                faithfulness = 0.5
-        elif "hallucination_status" in pipeline_outputs:
-            h_status = pipeline_outputs["hallucination_status"]
-            if h_status == "FAILED":
-                faithfulness = 0.0
-            elif h_status == "WARNING":
-                faithfulness = 0.5
+        # Refusal check for unanswerable / refused questions
+        refusal_phrases = ["couldn't find information", "not mentioned", "not provided", "do not have", "refuse", "unanswerable", "no information"]
+        is_refusal = any(rp in answer.lower() for rp in refusal_phrases)
+
+        # ----------------------------------------------------
+        # A. Independent Grounding Evaluation (Faithfulness & Hallucination Rate)
+        # Evaluates answer claims/sentences independently against reference evidence & retrieved context.
+        # DOES NOT read pipeline_outputs["hallucination_detection"]!
+        # ----------------------------------------------------
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', answer) if s.strip() and len(s.strip()) > 5]
+        
+        if is_refusal or not sentences:
+            faithfulness = 1.0
+        else:
+            evidence_texts = []
+            if reference_evidence:
+                evidence_texts.extend(reference_evidence)
+            for c in context_chunks:
+                if c.get("chunk_text"):
+                    evidence_texts.append(c["chunk_text"])
+            
+            full_evidence_corpus = " ".join(evidence_texts).lower()
+            grounded_sentences = 0
+            for sentence in sentences:
+                s_words = set(re.findall(r'\b\w+\b', sentence.lower())) - STOPWORDS
+                if not s_words:
+                    grounded_sentences += 1
+                    continue
+                
+                # Check overlap ratio against evidence corpus
+                evidence_words = set(re.findall(r'\b\w+\b', full_evidence_corpus))
+                overlap = s_words.intersection(evidence_words)
+                ratio = len(overlap) / len(s_words)
+                if ratio >= 0.35 or sentence.lower() in full_evidence_corpus:
+                    grounded_sentences += 1
+            
+            faithfulness = grounded_sentences / len(sentences)
+
+        faithfulness = float(round(faithfulness, 2))
+        hallucination_rate = float(round(max(0.0, 1.0 - faithfulness), 2))
+
         metrics_dict["faithfulness"] = MetricResult(
             metric_name="faithfulness",
             score=faithfulness,
-            description="Measures factual consistency of the answer against the retrieved context."
+            description="Automated evidence-grounding metric: independent ratio of factual statements supported by reference evidence."
         )
 
-        # B. Answer Relevancy
-        relevancy = 1.0
-        q_words = set(re.findall(r'\b\w+\b', question.lower())) - STOPWORDS
-        if q_words:
-            ans_words = set(re.findall(r'\b\w+\b', answer.lower()))
-            overlap = q_words.intersection(ans_words)
-            relevancy = len(overlap) / len(q_words)
+        metrics_dict["hallucination_rate"] = MetricResult(
+            metric_name="hallucination_rate",
+            score=hallucination_rate,
+            description="Automated ungrounded claim metric: independent ratio of answer statements unsupported by evidence."
+        )
+
+        # ----------------------------------------------------
+        # B. Semantic Answer Relevancy
+        # Uses sentence-transformers MiniLM cosine similarity against ground-truth answer.
+        # Handles refusal behavior for unanswerable questions.
+        # ----------------------------------------------------
+        if is_refusal:
+            # If ground-truth indicates refusal or no ground_truth/evidence was expected
+            if (ground_truth and any(rp in ground_truth.lower() for rp in refusal_phrases)) or (reference_evidence == [] and not ground_truth):
+                relevancy = 1.0
+            elif ground_truth:
+                relevancy = 0.0
+            else:
+                relevancy = 1.0
+        elif ground_truth:
+            try:
+                import numpy as np
+                from app.services.embedding_service import embedding_service
+                emb_ans = np.array(embedding_service.get_embedding(answer))
+                emb_gt = np.array(embedding_service.get_embedding(ground_truth))
+                norm_ans = np.linalg.norm(emb_ans)
+                norm_gt = np.linalg.norm(emb_gt)
+                if norm_ans > 0 and norm_gt > 0:
+                    sim = float(np.dot(emb_ans, emb_gt) / (norm_ans * norm_gt))
+                    relevancy = max(0.0, min(1.0, sim))
+                else:
+                    relevancy = 0.0
+            except Exception as e:
+                logger.warning(f"Semantic relevancy computation fallback: {e}")
+                q_words = set(re.findall(r'\b\w+\b', question.lower())) - STOPWORDS
+                ans_words = set(re.findall(r'\b\w+\b', answer.lower()))
+                relevancy = len(q_words.intersection(ans_words)) / len(q_words) if q_words else 1.0
+        else:
+            q_words = set(re.findall(r'\b\w+\b', question.lower())) - STOPWORDS
+            if q_words:
+                ans_words = set(re.findall(r'\b\w+\b', answer.lower()))
+                relevancy = len(q_words.intersection(ans_words)) / len(q_words)
+            else:
+                relevancy = 1.0
+
         metrics_dict["answer_relevancy"] = MetricResult(
             metric_name="answer_relevancy",
             score=float(round(relevancy, 2)),
-            description="Evaluates the lexical and logical relevance of the answer to the user query."
+            description="Semantic MiniLM embedding cosine similarity between generated answer and ground-truth answer."
         )
 
-        # C. Context Precision
-        # Calculate Precision@K based on citation feedback:
-        # A chunk is marked relevant if it is cited in the citations list
-        cited_texts = {getattr(c, "chunk_text", "").strip().lower() for c in citations}
+        # ----------------------------------------------------
+        # C. Ground-Truth Context Precision
+        # Measures whether retrieved chunks contain ground-truth reference evidence at high ranks.
+        # Independent of system citations!
+        # ----------------------------------------------------
         precision_sum = 0.0
         relevant_found = 0
-        for idx, chunk in enumerate(context_chunks):
-            chunk_text = chunk.get("chunk_text", "").strip().lower()
-            # If chunk overlaps significantly with any cited text
-            is_relevant = any(c_txt in chunk_text or chunk_text in c_txt for c_txt in cited_texts if c_txt)
-            if is_relevant:
-                relevant_found += 1
-                precision_sum += (relevant_found / (idx + 1))
-        context_precision = (precision_sum / relevant_found) if relevant_found > 0 else 1.0
+        
+        if reference_evidence:
+            ref_ev_lower = [e.strip().lower() for e in reference_evidence if e.strip()]
+            for idx, chunk in enumerate(context_chunks):
+                c_text = chunk.get("chunk_text", "").strip().lower()
+                is_rel = False
+                for ev in ref_ev_lower:
+                    if ev in c_text or c_text in ev:
+                        is_rel = True
+                        break
+                    ev_words = set(re.findall(r'\b\w+\b', ev)) - STOPWORDS
+                    if ev_words:
+                        c_words = set(re.findall(r'\b\w+\b', c_text))
+                        if len(ev_words.intersection(c_words)) / len(ev_words) >= 0.35:
+                            is_rel = True
+                            break
+                if is_rel:
+                    relevant_found += 1
+                    precision_sum += (relevant_found / (idx + 1))
+            context_precision = (precision_sum / relevant_found) if relevant_found > 0 else 0.0
+        elif reference_documents:
+            expected_names = {doc.strip().lower() for doc in reference_documents}
+            for idx, chunk in enumerate(context_chunks):
+                doc_name = chunk.get("document_name", "").strip().lower()
+                if doc_name in expected_names:
+                    relevant_found += 1
+                    precision_sum += (relevant_found / (idx + 1))
+            context_precision = (precision_sum / relevant_found) if relevant_found > 0 else 0.0
+        else:
+            context_precision = 1.0
+
         metrics_dict["context_precision"] = MetricResult(
             metric_name="context_precision",
             score=float(round(context_precision, 2)),
-            description="Measures if the most relevant retrieval chunks are positioned at higher ranks."
+            description="Ground-truth rank-weighted precision of retrieved chunks relative to reference evidence."
         )
 
-        # D. Context Recall
-        # Ratio of expected/ground-truth documents successfully retrieved.
-        context_recall = 1.0
-        if reference_documents:
-            retrieved_names = {c.get("document_name", "").strip().lower() for c in context_chunks}
+        # ----------------------------------------------------
+        # D. Ground-Truth Context Recall
+        # Measures whether reference evidence or expected documents were successfully retrieved.
+        # Independent of system citations!
+        # ----------------------------------------------------
+        if reference_evidence:
+            retrieved_texts = [c.get("chunk_text", "").strip().lower() for c in context_chunks]
+            found_count = 0
+            for ev in reference_evidence:
+                ev_lower = ev.strip().lower()
+                if not ev_lower:
+                    continue
+                ev_words = set(re.findall(r'\b\w+\b', ev_lower)) - STOPWORDS
+                found = False
+                for c_text in retrieved_texts:
+                    if ev_lower in c_text or c_text in ev_lower:
+                        found = True
+                        break
+                    if ev_words:
+                        c_words = set(re.findall(r'\b\w+\b', c_text))
+                        if len(ev_words.intersection(c_words)) / len(ev_words) >= 0.35:
+                            found = True
+                            break
+                if found:
+                    found_count += 1
+            context_recall = (found_count / len(reference_evidence)) if reference_evidence else 1.0
+        elif reference_documents:
+            retrieved_names = {c.get("document_name", "").strip().lower() for c in context_chunks if c.get("document_name")}
             expected_names = {doc.strip().lower() for doc in reference_documents}
             matched = retrieved_names.intersection(expected_names)
-            context_recall = len(matched) / len(expected_names) if expected_names else 1.0
+            context_recall = (len(matched) / len(expected_names)) if expected_names else 1.0
         else:
-            # Fallback to ratio of cited chunks to retrieved chunks
-            context_recall = (len(cited_texts) / len(context_chunks)) if context_chunks else 1.0
+            context_recall = 1.0
+
         metrics_dict["context_recall"] = MetricResult(
             metric_name="context_recall",
             score=float(round(context_recall, 2)),
-            description="Measures the fraction of relevant reference source documents successfully retrieved."
+            description="Ground-truth recall ratio of reference evidence items found in retrieved context chunks."
         )
 
         # E. Retrieval Precision & Recall
@@ -110,7 +221,7 @@ class EvaluationEngineService:
         metrics_dict["retrieval_precision"] = MetricResult(
             metric_name="retrieval_precision",
             score=float(round(ret_precision, 2)),
-            description="Ratio of relevant source snippets to the total retrieved snippets count."
+            description="Ratio of relevant source snippets to total retrieved context chunks."
         )
         metrics_dict["retrieval_recall"] = MetricResult(
             metric_name="retrieval_recall",
@@ -118,9 +229,8 @@ class EvaluationEngineService:
             description="Recall ratio of retrieved segments relative to total expected targets."
         )
 
-        # F. Citation Coverage
+        # F. Citation Coverage & Citation Precision
         citations_coverage = 1.0
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', answer) if s.strip()]
         if sentences:
             citations_coverage = min(1.0, len(citations) / len(sentences))
         metrics_dict["citation_coverage"] = MetricResult(
@@ -129,16 +239,11 @@ class EvaluationEngineService:
             description="Measures citation density (ratio of cited links to total factual statements)."
         )
 
-        # G. Hallucination Rate
-        hallucination_rate = 0.0
-        if faithfulness == 0.0:
-            hallucination_rate = 1.0
-        elif faithfulness == 0.5:
-            hallucination_rate = 0.5
-        metrics_dict["hallucination_rate"] = MetricResult(
-            metric_name="hallucination_rate",
-            score=hallucination_rate,
-            description="The fraction of ungrounded or hallucinated claims detected in final answers."
+        # Citation Precision explicitly marked NOT IMPLEMENTED
+        metrics_dict["citation_precision"] = MetricResult(
+            metric_name="citation_precision",
+            score=None,
+            description="NOT IMPLEMENTED - Fine-grained citation claim alignment requires sentence-level span mapping."
         )
 
         # H. Verification Success Rate
@@ -198,8 +303,7 @@ class EvaluationEngineService:
                 description="Success rate of depth-2 neighborhood multi-hop path retrievals."
             )
 
-
-        # 2. Weighted Overall Score Calculation
+        # Weighted Overall Score Calculation
         w_faithfulness = settings.EVAL_WEIGHT_FAITHFULNESS
         w_relevancy = settings.EVAL_WEIGHT_RELEVANCY
         w_precision = settings.EVAL_WEIGHT_CONTEXT_PRECISION
@@ -226,7 +330,7 @@ class EvaluationEngineService:
         )
         overall_score = max(0.0, min(1.0, float(round(overall_score, 2))))
 
-        # I. Confidence Calibration
+        # Confidence Calibration
         confidence = pipeline_outputs.get("confidence")
         conf_score = 1.0
         if confidence:
@@ -240,7 +344,7 @@ class EvaluationEngineService:
             description="Measures parity calibration between predicted confidence level and overall RAG quality score."
         )
 
-        # 3. Quality grading & recommendations
+        # Quality grading
         passed = overall_score >= settings.MIN_ACCEPTABLE_SCORE
         
         if overall_score >= 0.90:

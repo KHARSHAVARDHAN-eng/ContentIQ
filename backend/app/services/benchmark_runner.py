@@ -81,7 +81,8 @@ class BenchmarkRunnerService:
                 passed_count += 1
 
             for m_name, m_val in eval_res.metrics.items():
-                metric_sums[m_name] = metric_sums.get(m_name, 0.0) + m_val.score
+                if m_val.score is not None:
+                    metric_sums[m_name] = metric_sums.get(m_name, 0.0) + m_val.score
 
         # Calculate averages
         avg_overall = overall_scores_sum / total_queries

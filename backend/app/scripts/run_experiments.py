@@ -185,6 +185,7 @@ def seed_environment(db) -> User:
             fixed_points.append({
                 "chunk_id": fixed_point_id,
                 "document_id": doc_record.id,
+                "document_name": doc_name,
                 "page_number": 1,
                 "chunk_text": chunk_str,
                 "vector": vec
@@ -192,6 +193,7 @@ def seed_environment(db) -> User:
             bm25_fixed_corpus.append({
                 "chunk_id": str(fixed_point_id),
                 "document_id": doc_record.id,
+                "document_name": doc_name,
                 "page_number": 1,
                 "chunk_text": chunk_str
             })
@@ -202,6 +204,7 @@ def seed_environment(db) -> User:
         # 2. Adaptive Chunking -> COLLECTION_ADAPTIVE
         raw_adaptive_chunks, meta = chunker.chunk_text(text_content, doc_name)
         adaptive_points = []
+        adaptive_chunk_records = []
         for idx, chunk_str in enumerate(raw_adaptive_chunks):
             c_record = DocumentChunk(
                 document_id=doc_record.id,
@@ -213,11 +216,13 @@ def seed_environment(db) -> User:
             db.add(c_record)
             db.commit()
             db.refresh(c_record)
+            adaptive_chunk_records.append(c_record)
 
             vec = embedding_service.get_embedding(chunk_str)
             adaptive_points.append({
                 "chunk_id": adaptive_point_id,
                 "document_id": doc_record.id,
+                "document_name": doc_name,
                 "page_number": 1,
                 "chunk_text": chunk_str,
                 "vector": vec
@@ -225,12 +230,21 @@ def seed_environment(db) -> User:
             bm25_adaptive_corpus.append({
                 "chunk_id": str(adaptive_point_id),
                 "document_id": doc_record.id,
+                "document_name": doc_name,
                 "page_number": 1,
                 "chunk_text": chunk_str
             })
             adaptive_point_id += 1
 
         vector_store.upsert_chunks_bulk(adaptive_points, collection_name=COLLECTION_ADAPTIVE)
+
+        # 3. Seed GraphRAG Knowledge Graph for adaptive chunks
+        try:
+            from app.services.graph_builder import graph_builder
+            graph_builder.build_graph_for_document(doc_record.id, adaptive_chunk_records)
+            print(f"Seeded GraphRAG for {doc_name} with {len(adaptive_chunk_records)} chunks.")
+        except Exception as ge:
+            print(f"Warning: GraphRAG seeding failed for {doc_name}: {ge}")
 
     print(f"Seeding complete. User ID: {user.id}. Fixed chunks: {fixed_point_id - 10000}, Adaptive chunks: {adaptive_point_id - 20000}.")
     return user
@@ -363,6 +377,75 @@ def run_single_pipeline_query(
         }
     }
 
+CONFIGURATIONS = {
+    "B1": {
+        "name": "B1 Basic RAG",
+        "collection_name": COLLECTION_FIXED,
+        "use_hybrid": False,
+        "use_reranker": False,
+        "use_compression": False,
+        "use_evidence_selection": False,
+        "use_graphrag": False,
+        "use_verification": False,
+        "top_k": 5
+    },
+    "B2": {
+        "name": "B2 Adaptive Chunking",
+        "collection_name": COLLECTION_ADAPTIVE,
+        "use_hybrid": False,
+        "use_reranker": False,
+        "use_compression": False,
+        "use_evidence_selection": False,
+        "use_graphrag": False,
+        "use_verification": False,
+        "top_k": 5
+    },
+    "B3": {
+        "name": "B3 Adaptive + Hybrid",
+        "collection_name": COLLECTION_ADAPTIVE,
+        "use_hybrid": True,
+        "use_reranker": False,
+        "use_compression": False,
+        "use_evidence_selection": False,
+        "use_graphrag": False,
+        "use_verification": False,
+        "top_k": 5
+    },
+    "B4": {
+        "name": "B4 Adaptive + Hybrid + Reranker",
+        "collection_name": COLLECTION_ADAPTIVE,
+        "use_hybrid": True,
+        "use_reranker": True,
+        "use_compression": False,
+        "use_evidence_selection": False,
+        "use_graphrag": False,
+        "use_verification": False,
+        "top_k": 5
+    },
+    "B5a": {
+        "name": "B5a Full System (No GraphRAG)",
+        "collection_name": COLLECTION_ADAPTIVE,
+        "use_hybrid": True,
+        "use_reranker": True,
+        "use_compression": True,
+        "use_evidence_selection": True,
+        "use_graphrag": False,
+        "use_verification": True,
+        "top_k": 5
+    },
+    "B5b": {
+        "name": "B5b Full System (With GraphRAG)",
+        "collection_name": COLLECTION_ADAPTIVE,
+        "use_hybrid": True,
+        "use_reranker": True,
+        "use_compression": True,
+        "use_evidence_selection": True,
+        "use_graphrag": True,
+        "use_verification": True,
+        "top_k": 5
+    }
+}
+
 def main():
     print("==================================================")
     print(" STARTING CONTROLLED RAG ABLATION BENCHMARK RUN   ")
@@ -382,75 +465,7 @@ def main():
 
         print(f"Loaded {len(dataset)} benchmark questions from {dataset_path}.")
 
-        # 6 Baseline Configurations
-        configurations = {
-            "B1": {
-                "name": "B1 Basic RAG",
-                "collection_name": COLLECTION_FIXED,
-                "use_hybrid": False,
-                "use_reranker": False,
-                "use_compression": False,
-                "use_evidence_selection": False,
-                "use_graphrag": False,
-                "use_verification": False,
-                "top_k": 5
-            },
-            "B2": {
-                "name": "B2 Adaptive Chunking",
-                "collection_name": COLLECTION_ADAPTIVE,
-                "use_hybrid": False,
-                "use_reranker": False,
-                "use_compression": False,
-                "use_evidence_selection": False,
-                "use_graphrag": False,
-                "use_verification": False,
-                "top_k": 5
-            },
-            "B3": {
-                "name": "B3 Adaptive + Hybrid",
-                "collection_name": COLLECTION_ADAPTIVE,
-                "use_hybrid": True,
-                "use_reranker": False,
-                "use_compression": False,
-                "use_evidence_selection": False,
-                "use_graphrag": False,
-                "use_verification": False,
-                "top_k": 5
-            },
-            "B4": {
-                "name": "B4 Adaptive + Hybrid + Reranker",
-                "collection_name": COLLECTION_ADAPTIVE,
-                "use_hybrid": True,
-                "use_reranker": True,
-                "use_compression": False,
-                "use_evidence_selection": False,
-                "use_graphrag": False,
-                "use_verification": False,
-                "top_k": 5
-            },
-            "B5a": {
-                "name": "B5a Full System (No GraphRAG)",
-                "collection_name": COLLECTION_ADAPTIVE,
-                "use_hybrid": True,
-                "use_reranker": True,
-                "use_compression": True,
-                "use_evidence_selection": True,
-                "use_graphrag": False,
-                "use_verification": True,
-                "top_k": 5
-            },
-            "B5b": {
-                "name": "B5b Full System (With GraphRAG)",
-                "collection_name": COLLECTION_ADAPTIVE,
-                "use_hybrid": True,
-                "use_reranker": True,
-                "use_compression": True,
-                "use_evidence_selection": True,
-                "use_graphrag": True,
-                "use_verification": True,
-                "top_k": 5
-            }
-        }
+        configurations = CONFIGURATIONS
 
         # Warm-up query before timed evaluation
         print("\nPerforming warm-up query...")
@@ -483,6 +498,7 @@ def main():
                 q_text = q_item["question"]
                 q_type = q_item["question_type"]
                 ref_docs = q_item.get("reference_documents", [])
+                ref_evidence = q_item.get("reference_evidence", [])
                 ground_truth = q_item.get("ground_truth_answer", "")
 
                 out = run_single_pipeline_query(db, user, q_text, cfg)
@@ -495,7 +511,8 @@ def main():
                     context_chunks=out["candidate_chunks"],
                     pipeline_outputs=out["pipeline_outputs"],
                     ground_truth=ground_truth,
-                    reference_documents=ref_docs
+                    reference_documents=ref_docs,
+                    reference_evidence=ref_evidence
                 )
 
                 m_dict = eval_res.metrics
@@ -661,8 +678,17 @@ def main():
             json.dump(stat_results, f, indent=2)
 
         exp_config_path = os.path.join(output_dir, "experiment_config.json")
+        import subprocess
+        try:
+            git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        except Exception:
+            git_commit = "unknown"
+
         exp_config = {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "git_commit": git_commit,
+            "benchmark_version": "1.0.0",
+            "generator_mode": settings.RESEARCH_GENERATOR_MODE,
             "environment": {
                 "os": sys.platform,
                 "python_version": sys.version
@@ -673,14 +699,29 @@ def main():
                 "llm_model": settings.GEMINI_MODEL,
                 "temperature": 0.0
             },
-            "parameters": {
+            "feature_flags": {
+                "hybrid_retrieval": settings.HYBRID_RETRIEVAL_ENABLED,
+                "reranker": settings.RERANKER_ENABLED,
+                "context_compression": settings.CONTEXT_COMPRESSION_ENABLED,
+                "evidence_selection": settings.EVIDENCE_SELECTION_ENABLED,
+                "graphrag": settings.GRAPHRAG_ENABLED
+            },
+            "chunk_configuration": {
                 "fixed_chunk_size": FIXED_CHUNK_SIZE,
                 "fixed_chunk_overlap": FIXED_CHUNK_OVERLAP,
-                "dense_top_k": 5,
-                "rerank_top_k": 5,
-                "rrf_k": 60.0,
-                "max_context_tokens": settings.MAX_CONTEXT_TOKENS
+                "adaptive_chunking_enabled": settings.ADAPTIVE_CHUNKING_ENABLED,
+                "adaptive_chunk_strategy": settings.ADAPTIVE_CHUNKING_STRATEGY
             },
+            "retrieval_parameters": {
+                "retrieval_k": 5,
+                "rerank_top_k": settings.RERANK_TOP_K,
+                "rrf_parameters": {
+                    "rrf_k": 60.0,
+                    "dense_weight": settings.DENSE_RETRIEVAL_WEIGHT,
+                    "bm25_weight": settings.BM25_WEIGHT
+                }
+            },
+            "graphrag_status": settings.GRAPHRAG_ENABLED,
             "configurations": configurations
         }
         with open(exp_config_path, "w") as f:

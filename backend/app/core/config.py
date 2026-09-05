@@ -22,9 +22,10 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str | None = None
     QDRANT_PATH: str | None = "./qdrant_data"
     
-    # Gemini
+    # Gemini & Generator
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-1.5-flash"
+    RESEARCH_GENERATOR_MODE: str = "mock"
     QUERY_ANALYZER_MODEL: str = "gemini-1.5-flash"
     QUERY_ANALYZER_TEMPERATURE: float = 0.0
     QUERY_ANALYZER_FALLBACK_INTENT_CONF: float = 0.85

@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional
 
 class MetricResult(BaseModel):
     metric_name: str
-    score: float  # 0.0 to 1.0
+    score: Optional[float] = None  # 0.0 to 1.0 or None if NOT IMPLEMENTED
     description: str
     metadata: Dict[str, Any] = {}
 

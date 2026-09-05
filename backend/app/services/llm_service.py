@@ -42,6 +42,16 @@ class LLMService:
                 "confidence": 0.0
             }
 
+        # Check generator mode & API key configuration
+        api_key = settings.GEMINI_API_KEY
+        gen_mode = getattr(settings, "RESEARCH_GENERATOR_MODE", "mock").lower()
+
+        if gen_mode == "gemini" and not api_key:
+            raise ValueError(
+                "RESEARCH_GENERATOR_MODE is set to 'gemini' but GEMINI_API_KEY is missing/unconfigured. "
+                "Failing loudly to prevent un-intended mock fallback during research evaluation."
+            )
+
         # Perform deterministic evidence selection BEFORE LLM prompt compilation if enabled
         if settings.EVIDENCE_SELECTION_ENABLED:
             from app.services.evidence_selector import evidence_selector
@@ -54,10 +64,8 @@ class LLMService:
                 }
             context_chunks = evidence_chunks
 
-        # Check for API key configuration
-        api_key = settings.GEMINI_API_KEY
         if not api_key:
-            # Safe local fallback mode if key is not configured
+            # Safe local fallback mode if key is not configured and mode is mock
             print("Warning: GEMINI_API_KEY is not set. Running mock retrieval fallback.")
             mock_answer = self._generate_mock_answer(question, context_chunks)
             sources = self._compile_sources(context_chunks, mock_answer)
