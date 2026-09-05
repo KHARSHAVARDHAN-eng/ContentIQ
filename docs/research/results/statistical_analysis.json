@@ -1,0 +1,52 @@
+{
+  "B1_vs_B2": {
+    "comparison": "Adaptive Chunking Impact",
+    "baseline_1": "B1",
+    "baseline_2": "B2",
+    "mean_diff": -0.0014,
+    "effect_direction": "degradation",
+    "statistic": 34.0,
+    "p_value": 0.98365,
+    "statistically_significant_alpha_0_05": false
+  },
+  "B2_vs_B3": {
+    "comparison": "Hybrid Retrieval Impact",
+    "baseline_1": "B2",
+    "baseline_2": "B3",
+    "mean_diff": -0.006,
+    "effect_direction": "degradation",
+    "statistic": 0.0,
+    "p_value": 0.15734,
+    "statistically_significant_alpha_0_05": false
+  },
+  "B3_vs_B4": {
+    "comparison": "Cross-Encoder Reranking Impact",
+    "baseline_1": "B3",
+    "baseline_2": "B4",
+    "mean_diff": -0.0303,
+    "effect_direction": "degradation",
+    "statistic": 0.0,
+    "p_value": 0.02548,
+    "statistically_significant_alpha_0_05": true
+  },
+  "B4_vs_B5a": {
+    "comparison": "Context Compression & Evidence Selection Impact",
+    "baseline_1": "B4",
+    "baseline_2": "B5a",
+    "mean_diff": -0.0486,
+    "effect_direction": "degradation",
+    "statistic": 0.0,
+    "p_value": 0.00479,
+    "statistically_significant_alpha_0_05": true
+  },
+  "B5a_vs_B5b": {
+    "comparison": "GraphRAG Traversal Contribution",
+    "baseline_1": "B5a",
+    "baseline_2": "B5b",
+    "mean_diff": 0.0,
+    "effect_direction": "no change",
+    "statistic": 0.0,
+    "p_value": 1.0,
+    "statistically_significant_alpha_0_05": false
+  }
+}

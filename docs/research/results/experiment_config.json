@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-09-05T16:22:50Z",
+  "environment": {
+    "os": "darwin",
+    "python_version": "3.10.0 (v3.10.0:b494f5935c, Oct  4 2021, 14:59:19) [Clang 12.0.5 (clang-1205.0.22.11)]"
+  },
+  "models": {
+    "embedding_model": "all-MiniLM-L6-v2",
+    "reranker_model": "cross-encoder/ms-marco-MiniLM-L-2-v2",
+    "llm_model": "gemini-1.5-flash",
+    "temperature": 0.0
+  },
+  "parameters": {
+    "fixed_chunk_size": 500,
+    "fixed_chunk_overlap": 100,
+    "dense_top_k": 5,
+    "rerank_top_k": 5,
+    "rrf_k": 60.0,
+    "max_context_tokens": 2048
+  },
+  "configurations": {
+    "B1": {
+      "name": "B1 Basic RAG",
+      "collection_name": "research_fixed",
+      "use_hybrid": false,
+      "use_reranker": false,
+      "use_compression": false,
+      "use_evidence_selection": false,
+      "use_graphrag": false,
+      "use_verification": false,
+      "top_k": 5
+    },
+    "B2": {
+      "name": "B2 Adaptive Chunking",
+      "collection_name": "research_adaptive",
+      "use_hybrid": false,
+      "use_reranker": false,
+      "use_compression": false,
+      "use_evidence_selection": false,
+      "use_graphrag": false,
+      "use_verification": false,
+      "top_k": 5
+    },
+    "B3": {
+      "name": "B3 Adaptive + Hybrid",
+      "collection_name": "research_adaptive",
+      "use_hybrid": true,
+      "use_reranker": false,
+      "use_compression": false,
+      "use_evidence_selection": false,
+      "use_graphrag": false,
+      "use_verification": false,
+      "top_k": 5
+    },
+    "B4": {
+      "name": "B4 Adaptive + Hybrid + Reranker",
+      "collection_name": "research_adaptive",
+      "use_hybrid": true,
+      "use_reranker": true,
+      "use_compression": false,
+      "use_evidence_selection": false,
+      "use_graphrag": false,
+      "use_verification": false,
+      "top_k": 5
+    },
+    "B5a": {
+      "name": "B5a Full System (No GraphRAG)",
+      "collection_name": "research_adaptive",
+      "use_hybrid": true,
+      "use_reranker": true,
+      "use_compression": true,
+      "use_evidence_selection": true,
+      "use_graphrag": false,
+      "use_verification": true,
+      "top_k": 5
+    },
+    "B5b": {
+      "name": "B5b Full System (With GraphRAG)",
+      "collection_name": "research_adaptive",
+      "use_hybrid": true,
+      "use_reranker": true,
+      "use_compression": true,
+      "use_evidence_selection": true,
+      "use_graphrag": true,
+      "use_verification": true,
+      "top_k": 5
+    }
+  }
+}
