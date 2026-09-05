@@ -1,0 +1,525 @@
+[
+  {
+    "id": "Q01",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "Who kidnapped Sita and how did it happen?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Ravana disguised himself as a mendicant and abducted Sita from Panchavati after Maricha disguised himself as a golden deer to lure Rama away and Lakshmana left the hut after hearing a deceptive cry.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "Maricha disguised himself as a golden deer to lure Rama away.",
+      "Ravana seized the opportunity to abduct Sita."
+    ]
+  },
+  {
+    "id": "Q02",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "What did Hanuman do in Lanka after finding Sita?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Hanuman discovered Sita in Ashoka Vatika, conveyed Rama's message and signet ring, fought Ravana's warriors, allowed himself to be captured, set parts of Lanka ablaze with his burning tail, and returned to report to Rama.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "Hanuman discovered Sita in Ashoka Vatika, conveyed Rama's message, defeated many warriors, allowed himself to be captured, and set parts of Lanka ablaze before returning."
+    ]
+  },
+  {
+    "id": "Q03",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "How did Sugriva help Rama find Sita?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Sugriva formed an alliance with Rama, regained his kingdom from Vali with Rama's assistance, and mobilized his monkey army, sending search parties in four cardinal directions to locate Sita.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "Rama and Lakshmana searched tirelessly, meeting Shabari and eventually Sugriva.",
+      "Sugriva provided army and search organization."
+    ]
+  },
+  {
+    "id": "Q04",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "Explain the sequence of events from Sita's abduction to Hanuman finding her in Lanka.",
+    "question_type": "multi-step/sequence",
+    "answerable": true,
+    "ground_truth_answer": "First, Maricha lured Rama away as a golden deer and Ravana abducted Sita. Next, Jatayu fought Ravana and provided an initial clue before dying. Rama and Lakshmana met Shabari and then Sugriva, forming an alliance. Sugriva dispatched search parties, and Hanuman crossed the ocean to discover Sita in Ashoka Vatika.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "Maricha disguised himself as a golden deer... Ravana seized the opportunity to abduct Sita.",
+      "The noble bird Jatayu bravely fought Ravana...",
+      "Rama and Lakshmana searched tirelessly, meeting Shabari and eventually Sugriva.",
+      "Hanuman discovered Sita in Ashoka Vatika..."
+    ]
+  },
+  {
+    "id": "Q05",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "Who was Jatayu and what happened to him?",
+    "question_type": "relationship",
+    "answerable": true,
+    "ground_truth_answer": "Jatayu was a noble bird king who bravely fought Ravana in an attempt to rescue Sita. Ravana clipped his wings, leaving him mortally wounded, but Jatayu survived long enough to inform Rama and Lakshmana that Ravana had taken Sita south.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "The noble bird Jatayu bravely fought Ravana in an attempt to rescue Sita."
+    ]
+  },
+  {
+    "id": "Q06",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "How did both Jatayu and Sugriva assist Rama after Sita was abducted?",
+    "question_type": "multi-hop",
+    "answerable": true,
+    "ground_truth_answer": "Jatayu assisted Rama by fighting Ravana during the abduction and giving Rama the initial clue that Sita had been taken south. Sugriva assisted Rama by mobilizing his vanara army and organizing search parties in all four directions.",
+    "reference_documents": [
+      "ramayana_full.txt"
+    ],
+    "reference_evidence": [
+      "Jatayu provided initial location clue; Sugriva provided army and search organization."
+    ]
+  },
+  {
+    "id": "Q07",
+    "domain": "Literature",
+    "document": "ramayana_full.txt",
+    "question": "What is the capital of France?",
+    "question_type": "unanswerable/out-of-domain",
+    "answerable": false,
+    "ground_truth_answer": "I couldn't find information about this in the uploaded documents.",
+    "reference_documents": [],
+    "reference_evidence": []
+  },
+  {
+    "id": "Q08",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "How much did Acme Corp pay to acquire Beta Ltd?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Acme Corp acquired Beta Ltd for $2 billion in 2025.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Acme Corp acquired Beta Ltd for $2 billion in 2025."
+    ]
+  },
+  {
+    "id": "Q09",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "Where did Acme Corp open a new research center?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Acme Corp opened a research center in London.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Acme Corp later opened a research center in London."
+    ]
+  },
+  {
+    "id": "Q10",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "How many people were employed by Beta Ltd prior to the acquisition?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Beta Ltd previously employed 4,000 people.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Beta Ltd previously employed 4,000 people."
+    ]
+  },
+  {
+    "id": "Q11",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "What was Acme Corp's reported revenue growth rate following the acquisition?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Acme Corp reported a revenue growth of 18% in FY2025 following the acquisition integration.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Acme Corp reported a revenue growth of 18% in FY2025 following the acquisition integration."
+    ]
+  },
+  {
+    "id": "Q12",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "What changes occurred at Beta Ltd in 2025 regarding ownership and workforce size?",
+    "question_type": "cross-section",
+    "answerable": true,
+    "ground_truth_answer": "In 2025, Beta Ltd was acquired by Acme Corp for $2 billion, integrating its 4,000 employees into Acme Corp's corporate structure.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Acme Corp acquired Beta Ltd for $2 billion in 2025.",
+      "Beta Ltd previously employed 4,000 people."
+    ]
+  },
+  {
+    "id": "Q13",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "Summarize the major operational expansion milestones for Acme Corp in FY2025.",
+    "question_type": "multi-hop",
+    "answerable": true,
+    "ground_truth_answer": "In FY2025, Acme Corp completed the $2 billion acquisition of Beta Ltd, opened a research center in London, and achieved 18% revenue growth.",
+    "reference_documents": [
+      "Financial_Report.pdf"
+    ],
+    "reference_evidence": [
+      "Acme Corp acquired Beta Ltd for $2 billion in 2025.",
+      "Acme Corp later opened a research center in London.",
+      "Acme Corp reported a revenue growth of 18% in FY2025 following the acquisition integration."
+    ]
+  },
+  {
+    "id": "Q14",
+    "domain": "Financial",
+    "document": "Financial_Report.pdf",
+    "question": "What is the formula for quantum entanglement?",
+    "question_type": "unanswerable/out-of-domain",
+    "answerable": false,
+    "ground_truth_answer": "I couldn't find information about this in the uploaded documents.",
+    "reference_documents": [],
+    "reference_evidence": []
+  },
+  {
+    "id": "Q15",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "What is the position offered and duration of internship?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Position: Data Analyst Intern; Duration of internship: 4 month internship.",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "Position: Data Analyst Intern",
+      "Duration of internship: 4 month internship"
+    ]
+  },
+  {
+    "id": "Q16",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "What role was specified in the offer letter?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Data Analyst Intern",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "Position: Data Analyst Intern"
+    ]
+  },
+  {
+    "id": "Q17",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "How long is the internship period specified in the offer document?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "4 month internship",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "Duration of internship: 4 month internship"
+    ]
+  },
+  {
+    "id": "Q18",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "What confidentiality obligations are outlined in the employment agreement?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "All company data, analytics models, and client lists remain strictly proprietary.",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "All company data, analytics models, and client lists remain strictly proprietary."
+    ]
+  },
+  {
+    "id": "Q19",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "Compare the role responsibilities and duration stated in the employment offer.",
+    "question_type": "cross-section",
+    "answerable": true,
+    "ground_truth_answer": "The candidate is offered the role of Data Analyst Intern for a 4 month duration under strict data confidentiality terms.",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "Position: Data Analyst Intern",
+      "Duration of internship: 4 month internship",
+      "All company data, analytics models, and client lists remain strictly proprietary."
+    ]
+  },
+  {
+    "id": "Q20",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "What steps must the candidate follow regarding proprietary client lists and data models?",
+    "question_type": "relationship",
+    "answerable": true,
+    "ground_truth_answer": "The candidate must maintain strict confidentiality as company data, analytics models, and client lists remain strictly proprietary.",
+    "reference_documents": [
+      "offerLetter.pdf"
+    ],
+    "reference_evidence": [
+      "All company data, analytics models, and client lists remain strictly proprietary."
+    ]
+  },
+  {
+    "id": "Q21",
+    "domain": "Legal / HR",
+    "document": "offerLetter.pdf",
+    "question": "Who won the 2024 FIFA World Cup?",
+    "question_type": "unanswerable/out-of-domain",
+    "answerable": false,
+    "ground_truth_answer": "I couldn't find information about this in the uploaded documents.",
+    "reference_documents": [],
+    "reference_evidence": []
+  },
+  {
+    "id": "Q22",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "Who is the main character in the story and what telescope did he use?",
+    "question_type": "relationship",
+    "answerable": true,
+    "ground_truth_answer": "Raman Iyer is the main character and he used an antique brass telescope named Starlight-7.",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "This is a mock test story for Raman Iyer.",
+      "Raman Iyer used a brass telescope named Starlight-7.",
+      "It was an antique telescope he cherished."
+    ]
+  },
+  {
+    "id": "Q23",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "What is the name of Raman Iyer's telescope?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Starlight-7",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "Raman Iyer used a brass telescope named Starlight-7."
+    ]
+  },
+  {
+    "id": "Q24",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "What material was Starlight-7 made of?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Brass",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "Raman Iyer used a brass telescope named Starlight-7."
+    ]
+  },
+  {
+    "id": "Q25",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "Where did Raman Iyer conduct his astronomical observations?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Raman Iyer conducted observations at his hilltop observatory using Starlight-7.",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "Raman Iyer used a brass telescope named Starlight-7."
+    ]
+  },
+  {
+    "id": "Q26",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "Who assisted Raman Iyer with telemetric logging during his observations?",
+    "question_type": "relationship",
+    "answerable": true,
+    "ground_truth_answer": "Maya assisted Raman Iyer by logging telemetric readings alongside him.",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "Maya logged telescope telemetric readings alongside Raman."
+    ]
+  },
+  {
+    "id": "Q27",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "Describe how Raman Iyer and Maya utilized Starlight-7 during their celestial study.",
+    "question_type": "multi-hop",
+    "answerable": true,
+    "ground_truth_answer": "Raman Iyer observed stellar anomalies using his cherished antique brass telescope Starlight-7 while Maya logged the telemetric readings.",
+    "reference_documents": [
+      "DocumentIQ_Test_Story.txt"
+    ],
+    "reference_evidence": [
+      "Raman Iyer used a brass telescope named Starlight-7.",
+      "Maya logged telescope telemetric readings alongside Raman."
+    ]
+  },
+  {
+    "id": "Q28",
+    "domain": "Sci-Fi Fiction",
+    "document": "DocumentIQ_Test_Story.txt",
+    "question": "How do I bake a chocolate cake?",
+    "question_type": "unanswerable/out-of-domain",
+    "answerable": false,
+    "ground_truth_answer": "I couldn't find information about this in the uploaded documents.",
+    "reference_documents": [],
+    "reference_evidence": []
+  },
+  {
+    "id": "Q29",
+    "domain": "Scanned / OCR",
+    "document": "test_ocr_asset.png",
+    "question": "What is the secret OCR code?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Secret OCR Code: Antigravity RAG works!",
+    "reference_documents": [
+      "test_ocr_asset.png"
+    ],
+    "reference_evidence": [
+      "Secret OCR Code: Antigravity RAG works!"
+    ]
+  },
+  {
+    "id": "Q30",
+    "domain": "Scanned / OCR",
+    "document": "test_scanned_pdf.pdf",
+    "question": "What is the secret message in the scanned PDF?",
+    "question_type": "precise retrieval",
+    "answerable": true,
+    "ground_truth_answer": "Scanned PDF secret message: Qdrant matches!",
+    "reference_documents": [
+      "test_scanned_pdf.pdf"
+    ],
+    "reference_evidence": [
+      "Scanned PDF secret message: Qdrant matches!"
+    ]
+  },
+  {
+    "id": "Q31",
+    "domain": "Scanned / OCR",
+    "document": "test_ocr_asset.png",
+    "question": "What text is encoded inside the image file test_ocr_asset.png?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Secret OCR Code: Antigravity RAG works!",
+    "reference_documents": [
+      "test_ocr_asset.png"
+    ],
+    "reference_evidence": [
+      "Secret OCR Code: Antigravity RAG works!"
+    ]
+  },
+  {
+    "id": "Q32",
+    "domain": "Scanned / OCR",
+    "document": "test_scanned_pdf.pdf",
+    "question": "What vector database target is mentioned in the scanned document?",
+    "question_type": "single-hop factual",
+    "answerable": true,
+    "ground_truth_answer": "Qdrant",
+    "reference_documents": [
+      "test_scanned_pdf.pdf"
+    ],
+    "reference_evidence": [
+      "Scanned PDF secret message: Qdrant matches!"
+    ]
+  },
+  {
+    "id": "Q33",
+    "domain": "Scanned / OCR",
+    "document": "test_ocr_asset.png, test_scanned_pdf.pdf",
+    "question": "Compare the secret codes extracted from the PNG image and the scanned PDF document.",
+    "question_type": "cross-section",
+    "answerable": true,
+    "ground_truth_answer": "The PNG image contains 'Secret OCR Code: Antigravity RAG works!' whereas the scanned PDF contains 'Scanned PDF secret message: Qdrant matches!'.",
+    "reference_documents": [
+      "test_ocr_asset.png",
+      "test_scanned_pdf.pdf"
+    ],
+    "reference_evidence": [
+      "Secret OCR Code: Antigravity RAG works!",
+      "Scanned PDF secret message: Qdrant matches!"
+    ]
+  },
+  {
+    "id": "Q34",
+    "domain": "Scanned / OCR",
+    "document": "test_ocr_asset.png, test_scanned_pdf.pdf",
+    "question": "What engine and vector database validation messages are verified by the OCR pipeline?",
+    "question_type": "multi-hop",
+    "answerable": true,
+    "ground_truth_answer": "The OCR pipeline verifies 'Antigravity RAG works!' from image assets and 'Qdrant matches!' from scanned PDF documents.",
+    "reference_documents": [
+      "test_ocr_asset.png",
+      "test_scanned_pdf.pdf"
+    ],
+    "reference_evidence": [
+      "Secret OCR Code: Antigravity RAG works!",
+      "Scanned PDF secret message: Qdrant matches!"
+    ]
+  },
+  {
+    "id": "Q35",
+    "domain": "Scanned / OCR",
+    "document": "test_ocr_asset.png",
+    "question": "What is the stock price of Apple Inc today?",
+    "question_type": "unanswerable/out-of-domain",
+    "answerable": false,
+    "ground_truth_answer": "I couldn't find information about this in the uploaded documents.",
+    "reference_documents": [],
+    "reference_evidence": []
+  }
+]

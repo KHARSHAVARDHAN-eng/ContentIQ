@@ -269,6 +269,27 @@ class LLMAdaptiveChunker(BaseAdaptiveChunker):
         else:
             raise ValueError("Empty response from Gemini API during adaptive chunking decisions.")
 
+def _simple_recursive_split(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
+    separators = ["\n\n", "\n", " ", ""]
+    chunks = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = start + chunk_size
+        if end >= text_len:
+            chunks.append(text[start:])
+            break
+        cut = end
+        for sep in separators:
+            if sep:
+                pos = text.rfind(sep, start + chunk_size // 2, end)
+                if pos != -1:
+                    cut = pos + len(sep)
+                    break
+        chunks.append(text[start:cut])
+        start = cut - chunk_overlap if cut - chunk_overlap > start else cut
+    return [c for c in chunks if c.strip()]
+
 class AdaptiveChunkingService:
     def __init__(self):
         self.rules_chunker = RulesBasedAdaptiveChunker()
@@ -276,14 +297,17 @@ class AdaptiveChunkingService:
     def chunk_document(self, text: str, doc_name: str) -> Tuple[List[str], Dict[str, Any]]:
         if not settings.ADAPTIVE_CHUNKING_ENABLED:
             logger.info("Adaptive chunking is disabled. Executing standardRecursive splitting.")
-            # Standard chunking using Recursive splitter fallback
-            from langchain_text_splitters import RecursiveCharacterTextSplitter
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=settings.CHUNK_SIZE,
-                chunk_overlap=settings.CHUNK_OVERLAP,
-                length_function=len
-            )
-            chunks = splitter.split_text(text)
+            try:
+                from langchain_text_splitters import RecursiveCharacterTextSplitter
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=settings.CHUNK_SIZE,
+                    chunk_overlap=settings.CHUNK_OVERLAP,
+                    length_function=len
+                )
+                chunks = splitter.split_text(text)
+            except Exception:
+                chunks = _simple_recursive_split(text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP)
+
             metadata = {
                 "chunk_size": settings.CHUNK_SIZE,
                 "overlap": settings.CHUNK_OVERLAP,

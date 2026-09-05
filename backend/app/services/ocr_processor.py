@@ -12,7 +12,6 @@ from app.models.document_page import DocumentPage
 from app.models.document_chunk import DocumentChunk
 from app.models.chunk_embedding import ChunkEmbedding
 from app.core.config import settings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.services.embedding_service import embedding_service
 from app.services.ocr_service import ocr_service
 from app.services.adaptive_chunking import adaptive_chunker

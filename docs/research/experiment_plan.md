@@ -2,7 +2,7 @@
 
 ## 1. Research Objective
 
-The primary objective of this experiment is to rigorously and empirically evaluate the performance of an advanced enterprise Retrieval-Augmented Generation (RAG) architecture against standard baseline configurations. Specifically, we investigate whether integrating **adaptive document chunking**, **hybrid retrieval (Dense + BM25)**, **cross-encoder reranking**, **context compression**, and **query-aware evidence selection** significantly improves retrieval accuracy, factual grounding, answer relevance, and resistance to hallucination without incurring prohibitive latency overhead.
+The primary objective of this experiment is to rigorously and empirically evaluate the performance of an advanced enterprise Retrieval-Augmented Generation (RAG) architecture against standard baseline configurations. Specifically, we investigate whether integrating **adaptive document chunking**, **hybrid retrieval (Dense + BM25)**, **cross-encoder reranking**, **context compression**, **query-aware evidence selection**, and **GraphRAG entity traversal** significantly improves retrieval accuracy, factual grounding, answer relevance, and resistance to hallucination without incurring prohibitive latency overhead.
 
 ---
 
@@ -10,109 +10,128 @@ The primary objective of this experiment is to rigorously and empirically evalua
 
 * **RQ1 (Adaptive Chunking Impact):** Does domain-adaptive document chunking improve retrieval recall and precision compared with fixed-size chunking across heterogeneous document types?
 * **RQ2 (Hybrid Retrieval & Reranking Efficacy):** Does combining dense vector retrieval with lexical BM25 search and cross-encoder reranking improve top-K context relevance compared to single-modality vector retrieval?
-* **RQ3 (Query-Aware Evidence Selection & Leakage Reduction):** Does sentence-level query-aware evidence selection eliminate cross-entity context leakage and raw section header contamination in generated answers?
+* **RQ3 (Query-Aware Evidence Selection & Leakage Reduction):** Does sentence-level query-aware evidence selection reduce cross-entity context leakage and raw section header contamination compared with passing raw retrieved context?
 * **RQ4 (End-to-End Grounded Answer Quality):** Does the complete RAG pipeline improve overall factual correctness, citation coverage, and grounding score compared with simpler RAG baselines?
-* **RQ5 (Latency-Quality Trade-off):** What is the exact latency overhead introduced by each stage of the advanced pipeline, and is the quality improvement justified by the runtime cost?
+* **RQ5 (GraphRAG Contribution & Latency Trade-off):** What is the incremental performance contribution of GraphRAG entity graph traversal (B5a vs. B5b), and what is the exact latency overhead introduced by each stage of the pipeline?
 
 ---
 
 ## 3. Hypotheses
 
-* **H1 (Chunking Quality):** Adaptive chunking aligned to document structure (e.g., technical docs vs. research papers) will increase Retrieval Recall@5 by at least 15% over fixed 500-token chunking.
+* **H1 (Chunking Quality - Directional):** Domain-adaptive document chunking yields higher retrieval recall and precision than fixed-size chunking across heterogeneous document formats.
 * **H2 (Retrieval Relevance):** Hybrid RRF fusion + Cross-Encoder reranking will yield higher Context Precision@5 than dense vector search alone.
-* **H3 (Leakage & Hallucination Suppression):** Query-aware evidence selection will reduce unrelated adjacent section leakage and hallucination rate to 0.0% on focused single-entity queries.
-* **H4 (Out-of-Domain Safety):** Multi-stage verification will achieve 100% grounded refusal (zero ungrounded claims and zero citations) on out-of-domain/unanswerable queries.
+* **H3 (Leakage & Hallucination Suppression - Directional):** Query-aware evidence selection reduces cross-entity context leakage and hallucination compared with passing raw retrieved context.
+* **H4 (Out-of-Domain Safety):** Multi-stage verification will achieve grounded refusal (zero ungrounded claims and zero citations) on out-of-domain/unanswerable queries.
 * **H5 (Multi-hop Reasoning):** Multi-query transformation and GraphRAG traversal will preserve chronological multi-hop narrative structure across multi-chunk questions.
+
+*Note: Hypotheses remain open to empirical testing across benchmark runs; none are claimed as pre-proven.*
 
 ---
 
-## 4. Controlled System Configurations
+## 4. Controlled System Configurations & Isolation Mechanism
 
-To isolate the individual contribution of each architectural component, all experiments evaluate the same dataset and questions under 5 strictly controlled pipeline configurations:
+To guarantee scientific ablation isolation, all experiments evaluate the same benchmark dataset (`docs/research/benchmark_dataset.json`) across **6 strictly isolated baseline configurations**.
+
+### Qdrant Vector Store Collection Isolation
+To prevent vector cross-contamination between fixed-chunk (B1) and adaptive-chunk (B2–B5) corpora, Qdrant utilizes dedicated collection namespaces:
+* `research_fixed`: Isolated Qdrant collection containing fixed-size chunks (`CHUNK_SIZE = 500`, `CHUNK_OVERLAP = 100`).
+* `research_adaptive`: Isolated Qdrant collection containing rules-based adaptive document chunks (`document_chunks`).
+
+### Evidence Selection Toggle
+The feature flag `EVIDENCE_SELECTION_ENABLED` in `app/core/config.py` explicitly toggles query-aware evidence selection:
+* `EVIDENCE_SELECTION_ENABLED = False`: Evidence selection bypass mode (used for Baselines B1–B4).
+* `EVIDENCE_SELECTION_ENABLED = True`: Sentence-level query-aware evidence selection active (used for Baselines B5a & B5b).
+
+### Baseline Component Matrix
+
+| Configuration | Qdrant Namespace | Chunking Strategy | Retrieval Mode | Reranker | Context Compression | Evidence Selection (`EVIDENCE_SELECTION_ENABLED`) | GraphRAG (`GRAPHRAG_ENABLED`) | Verification |
+| :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **B1: Basic RAG** | `research_fixed` | Fixed (500 tokens) | Dense Vector | OFF | OFF | OFF | OFF | OFF |
+| **B2: Adaptive Chunking** | `research_adaptive` | Adaptive Rules | Dense Vector | OFF | OFF | OFF | OFF | OFF |
+| **B3: Adaptive + Hybrid** | `research_adaptive` | Adaptive Rules | Dense + BM25 RRF | OFF | OFF | OFF | OFF | OFF |
+| **B4: Adaptive + Hybrid + Reranker** | `research_adaptive` | Adaptive Rules | Dense + BM25 RRF | ON | OFF | OFF | OFF | OFF |
+| **B5a: Full Pipeline WITHOUT GraphRAG** | `research_adaptive` | Adaptive Rules | Dense + BM25 RRF | ON | ON | ON | OFF | ON |
+| **B5b: Full Pipeline WITH GraphRAG** | `research_adaptive` | Adaptive Rules | Dense + BM25 RRF + Graph | ON | ON | ON | ON | ON |
+
+---
+
+## 5. Detailed Baseline Specifications
 
 ### Baseline 1: Basic RAG
+* **Collection Namespace:** `research_fixed`
 * **Chunking:** Fixed-size chunking (`CHUNK_SIZE = 500`, `CHUNK_OVERLAP = 100`)
 * **Retrieval:** Single-modality Dense Vector Retrieval (`all-MiniLM-L6-v2`, `Top-K = 5`)
 * **Reranking:** Disabled
-* **Compression / Evidence Selection:** Disabled (Full retrieved raw chunks passed directly to LLM)
+* **Compression / Evidence Selection:** Disabled (`EVIDENCE_SELECTION_ENABLED = False`)
+* **GraphRAG:** Disabled (`GRAPHRAG_ENABLED = False`)
 * **Verification & Grounding:** Disabled
 
 ### Baseline 2: Adaptive Chunking RAG
+* **Collection Namespace:** `research_adaptive`
 * **Chunking:** Adaptive Chunking Strategy (`ADAPTIVE_CHUNKING_STRATEGY = "rules"`, domain-tailored sizes)
 * **Retrieval:** Single-modality Dense Vector Retrieval (`Top-K = 5`)
 * **Reranking:** Disabled
-* **Compression / Evidence Selection:** Disabled
+* **Compression / Evidence Selection:** Disabled (`EVIDENCE_SELECTION_ENABLED = False`)
+* **GraphRAG:** Disabled (`GRAPHRAG_ENABLED = False`)
 * **Verification & Grounding:** Disabled
 
-### Baseline 3: Hybrid RAG
+### Baseline 3: Adaptive + Hybrid RAG
+* **Collection Namespace:** `research_adaptive`
 * **Chunking:** Adaptive Chunking Strategy
 * **Retrieval:** Hybrid Retrieval (Dense Vector 0.5 + BM25 Sparse 0.5, RRF fusion $k=60.0$, `Top-K = 5`)
 * **Reranking:** Disabled
-* **Compression / Evidence Selection:** Disabled
+* **Compression / Evidence Selection:** Disabled (`EVIDENCE_SELECTION_ENABLED = False`)
+* **GraphRAG:** Disabled (`GRAPHRAG_ENABLED = False`)
 * **Verification & Grounding:** Disabled
 
-### Baseline 4: Hybrid + Reranker
+### Baseline 4: Adaptive + Hybrid + Reranker
+* **Collection Namespace:** `research_adaptive`
 * **Chunking:** Adaptive Chunking Strategy
 * **Retrieval:** Hybrid Retrieval (`Top-K = 10`)
 * **Reranking:** Cross-Encoder Reranking (`cross-encoder/ms-marco-MiniLM-L-2-v2`, Retained `Top-K = 5`, Score Threshold = 0.02)
-* **Compression / Evidence Selection:** Disabled
+* **Compression / Evidence Selection:** Disabled (`EVIDENCE_SELECTION_ENABLED = False`)
+* **GraphRAG:** Disabled (`GRAPHRAG_ENABLED = False`)
 * **Verification & Grounding:** Disabled
 
-### Proposed Full System: ContentIQ / DocumentIQ RAG Pipeline
+### Baseline 5a: Full Pipeline WITHOUT GraphRAG
+* **Collection Namespace:** `research_adaptive`
 * **Chunking:** Adaptive Chunking Strategy
 * **Query Processing:** Query Transformation (Multi-Query Generation, Ambiguity Scoring, Expansion)
-* **Retrieval:** Hybrid Retrieval + Knowledge Graph RAG (`GRAPHRAG_ENABLED = True`, Traversal Depth = 2)
+* **Retrieval:** Hybrid Retrieval (Dense + BM25 RRF)
 * **Reranking:** Cross-Encoder Reranking
 * **Context Compression:** Sentence-level redundancy elimination and token compression (`MAX_CONTEXT_TOKENS = 2048`)
-* **Evidence Selection:** Sentence-level query-aware evidence selection, focus subject entity qualification, and header noise removal
+* **Evidence Selection:** Sentence-level query-aware evidence selection (`EVIDENCE_SELECTION_ENABLED = True`)
+* **GraphRAG:** Disabled (`GRAPHRAG_ENABLED = False`)
 * **Synthesis & Verification:** Grounded LLM generation, Hallucination Detection, Claim Verification, Citation Mapping, and Self-Reflection Confidence Scoring
 
----
-
-## 5. Multi-Domain Benchmark Dataset Specification
-
-The evaluation benchmark incorporates 5 distinct document domains to evaluate generalizability across structured, semi-structured, and unstructured corpora.
-
-### Domain 1: Epic Narrative & Classical Literature
-* **Document:** `ramayana_full.txt` / `Ramayana_23_Page_Test_Document.pdf` (Multi-section epic narrative)
-* **Characteristics:** High entity overlap, complex relationships, multi-character story arcs, section headers.
-
-### Domain 2: Financial & Corporate Reports
-* **Document:** `Financial_Report.pdf` (Corporate acquisition & earnings document)
-* **Characteristics:** Quantitative metrics, company entities, financial figures, transaction dates.
-
-### Domain 3: Legal & HR Offer Documents
-* **Document:** `offerLetter.pdf` / `offerLetter.txt` (Structured employment agreement)
-* **Characteristics:** Key-value pairs, position titles, contract durations, unpunctuated line breaks.
-
-### Domain 4: Sci-Fi Fiction & Narrative
-* **Document:** `DocumentIQ_Test_Story.txt` (Short story featuring fictional entities like Raman Iyer, Starlight-7)
-* **Characteristics:** Fictional proper nouns, character motivations, location tracking.
-
-### Domain 5: Scanned & OCR Technical Assets
-* **Document:** `test_ocr_asset.png` / `test_scanned_pdf.pdf` (Scanned image & PDF technical documents)
-* **Characteristics:** OCR noise, scanned text layout, bounding box text extraction.
+### Baseline 5b: Full Pipeline WITH GraphRAG
+* **Collection Namespace:** `research_adaptive`
+* **Chunking:** Adaptive Chunking Strategy
+* **Query Processing:** Query Transformation
+* **Retrieval:** Hybrid Retrieval + Knowledge Graph RAG (`GRAPHRAG_ENABLED = True`, Traversal Depth = 2, Graph Weight = 0.30)
+* **Reranking:** Cross-Encoder Reranking
+* **Context Compression:** Sentence-level redundancy elimination and token compression
+* **Evidence Selection:** Sentence-level query-aware evidence selection (`EVIDENCE_SELECTION_ENABLED = True`)
+* **GraphRAG:** Enabled (`GRAPHRAG_ENABLED = True`)
+* **Synthesis & Verification:** Full verification pipeline active
 
 ---
 
-## 6. Benchmark Question Categories & Ground-Truth Specification
+## 6. Multi-Domain Benchmark Dataset Specification
 
-| ID | Category | Target Question | Primary Domain | Expected Evidence / Ground Truth | Answerable? | Difficulty |
-| :--- | :--- | :--- | :--- | :--- | :---: | :---: |
-| **Q1** | Single-hop Factual | *"Who kidnapped Sita and how did it happen?"* | Literature | Ravana disguised as a mendicant, lured Rama/Lakshmana via Maricha, abducted Sita from Panchavati in Pushpaka Vimana to Ashoka Vatika. | Yes | Easy |
-| **Q2** | Single-hop Focused | *"What did Hanuman do in Lanka?"* | Literature | Leaped ocean, found Sita in Ashoka Vatika, gave signet ring, fought warriors, tail set ablaze, burned Lanka, reported to Rama. | Yes | Easy |
-| **Q3** | Single-hop Focused | *"How did Sugriva help Rama find Sita?"* | Literature | Formed alliance with Rama, regained throne from Vali, mobilized monkey army, sent search parties in 4 cardinal directions. | Yes | Medium |
-| **Q4** | Multi-step / Chronological | *"Explain the sequence of events from Sita's abduction to Hanuman finding her in Lanka."* | Literature | Abduction by Ravana $\rightarrow$ Jatayu fight & clue $\rightarrow$ Rama/Sugriva alliance $\rightarrow$ Monkey army search $\rightarrow$ Hanuman reaching Ashoka Vatika. | Yes | Hard |
-| **Q5** | Single-hop Entity | *"Who was Jatayu and what happened to him?"* | Literature | Vulture king who fought Ravana to rescue Sita; wings clipped, mortally wounded, informed Rama of Ravana heading south. | Yes | Easy |
-| **Q6** | Out-of-Domain Refusal | *"What is the capital of France?"* | None | Grounded Refusal ("I couldn't find information about this in the uploaded documents.") with zero citations. | No | Easy |
-| **Q7** | Relationship / Multi-Entity | *"How did both Jatayu and Sugriva assist Rama after Sita was abducted?"* | Literature | Jatayu provided initial location clue; Sugriva provided army and search organization. | Yes | Medium |
-| **Q8** | Factual Extraction | *"How much did Acme Corp pay to acquire Beta Ltd?"* | Financial | Acme Corp acquired Beta Ltd for $2 billion in 2025. | Yes | Easy |
-| **Q9** | Precise Extraction | *"What is the position offered and duration of internship?"* | HR / Legal | Position: Data Analyst Intern; Duration: 4 months. | Yes | Easy |
-| **Q10**| OCR Technical Extraction | *"What is the secret OCR code?"* | Scanned OCR | Secret OCR Code: Antigravity RAG works! | Yes | Medium |
+The evaluation benchmark incorporates 35 questions (`docs/research/benchmark_dataset.json`) across 5 distinct document domains (~7 questions per domain) to evaluate generalizability across structured, semi-structured, and unstructured corpora.
+
+### Domain Breakdown
+
+1. **Literature (7 Questions):** `ramayana_full.txt` (Multi-section epic narrative; entity overlap, complex relationships, multi-character story arcs).
+2. **Financial / Corporate (7 Questions):** `Financial_Report.pdf` (Corporate acquisition & earnings document; quantitative metrics, company entities, financial figures).
+3. **Legal / HR (7 Questions):** `offerLetter.pdf` (Structured employment agreement; position titles, contract durations, unpunctuated line breaks).
+4. **Sci-Fi Fiction (7 Questions):** `DocumentIQ_Test_Story.txt` (Short narrative; proper nouns like Raman Iyer and Starlight-7, character motivations).
+5. **Scanned / OCR (7 Questions):** `test_ocr_asset.png` / `test_scanned_pdf.pdf` (Scanned image & PDF technical documents; OCR noise, text layout).
 
 ---
 
-## 7. Metrics & Scientifically Justified Evaluation Dimensions
+## 7. Metrics & Evaluation Dimensions
 
 ### A. Retrieval Metrics
 * **Context Precision@K:** Ratio of relevant chunks positioned at top ranks.
@@ -131,13 +150,11 @@ The evaluation benchmark incorporates 5 distinct document domains to evaluate ge
 
 ### D. System Performance Metrics
 * **Total End-to-End Latency (ms):** Wall-clock time from incoming query request to final HTTP response.
-* **Stage Latencies (ms):** Query transformation, retrieval, reranking, evidence selection, LLM generation.
+* **Stage Latencies (ms):** Query transformation, retrieval, reranking, evidence selection, GraphRAG traversal, LLM generation.
 
 ---
 
 ## 8. Experimental Protocol & Reproducibility Settings
-
-To guarantee strict scientific reproducibility, all experimental runs use exact parameter values configured in the codebase:
 
 ```yaml
 System Environment:
@@ -174,27 +191,30 @@ Context & Evidence Selection:
 
 | Pipeline Configuration | Context Precision@5 | Context Recall | Faithfulness | Answer Relevancy | Hallucination Rate | Overall Score |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Baseline 1: Basic RAG** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Baseline 2: Adaptive Chunking** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Baseline 3: Hybrid RAG** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Baseline 4: Hybrid + Reranker** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Proposed Full System** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
+| **B1: Basic RAG** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B2: Adaptive Chunking** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B3: Adaptive + Hybrid** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B4: Adaptive + Hybrid + Reranker** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B5a: Full System (No GraphRAG)** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B5b: Full System (With GraphRAG)** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
 
 ### Table 2: Evidence Selection & Leakage Suppression Performance
 
-| Pipeline Configuration | Q2 Raw Header Leakage | Q3 Unrelated Entity Leakage | Q6 Out-of-Domain Refusal | Citation Coverage |
+| Pipeline Configuration | Raw Header Leakage | Unrelated Entity Leakage | Out-of-Domain Refusal | Citation Coverage |
 | :--- | :---: | :---: | :---: | :---: |
-| **Baseline 1: Basic RAG** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Baseline 4: Hybrid + Reranker** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
-| **Proposed Full System** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
+| **B1: Basic RAG** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B4: Adaptive + Hybrid + Reranker** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B5a: Full System (No GraphRAG)** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B5b: Full System (With GraphRAG)** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
 
-### Table 3: System Latency Breakdown (ms)
+### Table 3: GraphRAG Ablation & System Latency Breakdown (ms)
 
-| Pipeline Configuration | Retrieval Latency | Rerank Latency | Evidence Selection Latency | Generation Latency | Total Latency |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Baseline 1: Basic RAG** | NOT YET MEASURED | N/A | N/A | NOT YET MEASURED | NOT YET MEASURED |
-| **Baseline 4: Hybrid + Reranker** | NOT YET MEASURED | NOT YET MEASURED | N/A | NOT YET MEASURED | NOT YET MEASURED |
-| **Proposed Full System** | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED | NOT YET MEASURED |
+| Pipeline Configuration | Retrieval Latency | Rerank Latency | GraphRAG Latency | Evidence Selection Latency | Generation Latency | Total Latency |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **B1: Basic RAG** | UNEXECUTED | N/A | N/A | N/A | UNEXECUTED | UNEXECUTED |
+| **B4: Hybrid + Reranker** | UNEXECUTED | UNEXECUTED | N/A | N/A | UNEXECUTED | UNEXECUTED |
+| **B5a: Full System (No GraphRAG)** | UNEXECUTED | UNEXECUTED | N/A | UNEXECUTED | UNEXECUTED | UNEXECUTED |
+| **B5b: Full System (With GraphRAG)** | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED | UNEXECUTED |
 
 ---
 
@@ -205,4 +225,4 @@ Context & Evidence Selection:
 * **Document Corpus Size:** Current benchmark covers 5 document domains; scaling to thousands of documents may require indexing optimizations.
 
 ---
-*Document Version: 1.0.0 | Status: Experiment Specification Frozen*
+*Document Version: 2.0.0 | Status: Experiment Specification & Isolation Architecture Frozen*

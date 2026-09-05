@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     
     # Context Compression Settings
     CONTEXT_COMPRESSION_ENABLED: bool = True
+    EVIDENCE_SELECTION_ENABLED: bool = True
     MAX_CONTEXT_TOKENS: int = 2048
     MAX_CONTEXT_CHUNKS: int = 10
     REDUNDANCY_THRESHOLD: float = 0.85

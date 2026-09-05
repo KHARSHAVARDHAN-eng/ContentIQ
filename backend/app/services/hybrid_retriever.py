@@ -18,7 +18,8 @@ class HybridRetrievalService:
         db: Session,
         query: str,
         user_doc_ids: List[int],
-        limit: int
+        limit: int,
+        collection_name: str = "document_chunks"
     ) -> Tuple[List[Dict[str, Any]], HybridRetrievalResult]:
         start_time = time.perf_counter()
         
@@ -47,7 +48,8 @@ class HybridRetrievalService:
             dense_hits = vector_store.search_similar_chunks(
                 query_vector=query_vector,
                 limit=limit,
-                query_filter=query_filter
+                query_filter=query_filter,
+                collection_name=collection_name
             )
             
             original_dense = [str(h["chunk_id"]) for h in dense_hits]
@@ -105,7 +107,8 @@ class HybridRetrievalService:
         dense_hits = vector_store.search_similar_chunks(
             query_vector=query_vector,
             limit=limit,
-            query_filter=query_filter
+            query_filter=query_filter,
+            collection_name=collection_name
         )
         dense_latency = time.perf_counter() - dense_start
 

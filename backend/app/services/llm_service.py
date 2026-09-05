@@ -42,6 +42,18 @@ class LLMService:
                 "confidence": 0.0
             }
 
+        # Perform deterministic evidence selection BEFORE LLM prompt compilation if enabled
+        if settings.EVIDENCE_SELECTION_ENABLED:
+            from app.services.evidence_selector import evidence_selector
+            evidence_chunks = evidence_selector.select_evidence(question, context_chunks)
+            if not evidence_chunks:
+                return {
+                    "answer": "I couldn't find information about this in the uploaded documents.",
+                    "sources": [],
+                    "confidence": 0.0
+                }
+            context_chunks = evidence_chunks
+
         # Check for API key configuration
         api_key = settings.GEMINI_API_KEY
         if not api_key:
@@ -64,16 +76,15 @@ class LLMService:
             genai.configure(api_key=api_key)
             
             system_instruction = (
-                "You are an expert document assistant and synthesis engine.\n"
-                "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided context blocks as evidence.\n"
+                "You are an expert grounded RAG assistant.\n"
+                "Your task is to answer the user's question directly, clearly, and concisely using ONLY the provided evidence passages.\n"
                 "Follow these strict response synthesis principles:\n"
-                "1. Direct Answer & Identification: State the direct answer immediately in the first sentence.\n"
-                "2. Multi-Chunk Timeline & Sequence Synthesis: For sequence or timeline questions, synthesize evidence across ALL provided context chunks to cover multi-step events and cause-and-effect chains spanning multiple pages.\n"
-                "3. Explicit Concluding Action: Always conclude multi-step causal explanations by explicitly stating the final resulting action.\n"
-                "4. Clean Complete Sentences: Synthesize into clean, grammatically complete prose without unpunctuated text or raw headers.\n"
-                "5. Strict Grounding: Rely ONLY on facts stated in the provided context. Never invent or extrapolate information.\n"
-                "6. Fallback Rule: If the question cannot be answered from the provided context, state exactly:\n"
-                "'I couldn't find information about this in the uploaded documents.'"
+                "1. Answer ONLY from supplied evidence. Do not use outside knowledge.\n"
+                "2. Do not repeat entire source chunks or concatenate irrelevant passages.\n"
+                "3. Do not mention irrelevant retrieved material (such as unrelated sections, later war events, or background context).\n"
+                "4. Produce a concise 1-3 sentence answer for focused questions. For sequence questions, synthesize chronological multi-step events supported by evidence.\n"
+                "5. Every factual claim must be directly supported by supplied evidence. Do not invent or extrapolate missing facts.\n"
+                "6. If the provided evidence is insufficient or unsupported, state exactly: 'I couldn't find information about this in the uploaded documents.'"
             )
             
             model = genai.GenerativeModel(
@@ -214,109 +225,41 @@ class LLMService:
         return round(float(top_score), 4)
 
     def _generate_mock_answer(self, question: str, context_chunks: List[Dict[str, Any]]) -> str:
+        """
+        Grounded synthesis fallback for testing and offline execution.
+        Takes candidate context_chunks, prunes irrelevant evidence, and formats a clean grounded answer.
+        """
+        import re
         if not context_chunks:
             return "I couldn't find information about this in the uploaded documents."
-        
-        import re
-        
-        # Stopwords for query keyword extraction
-        stopwords = {
-            "what", "when", "where", "which", "who", "whom", "whose", "why", "how",
-            "is", "was", "were", "are", "been", "be", "have", "has", "had", "do", "does", "did",
-            "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by",
-            "about", "against", "between", "into", "through", "during", "before", "after",
-            "above", "below", "from", "up", "down", "out", "off", "over", "under",
-            "again", "further", "then", "once", "here", "there", "all", "any", "both", "each",
-            "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own",
-            "same", "so", "than", "too", "very", "can", "will", "just", "should", "now",
-            "explain", "sequence", "events", "finding", "find", "describe", "details", "her", "him", "his", "their", "them"
-        }
-        
-        q_lower = question.lower()
-        q_words = [w for w in re.findall(r'\b[a-z0-9]+\b', q_lower) if len(w) >= 3 and w not in stopwords]
-        
+
+        from app.services.evidence_selector import evidence_selector
         from app.services.context_compressor import context_compressor
 
-        # Extract clean clauses across chunks
-        all_clauses = []
-        seen_norm = set()
-
-        for chunk_idx, chunk in enumerate(context_chunks[:5]):
-            text = chunk.get("chunk_text", "").strip()
-            if not text:
-                continue
-            
-            cleaned_text = context_compressor._clean_chunk_boundaries(text)
-            # Split on periods, semicolons, exclamation, question marks, or newlines
-            raw_clauses = [c.strip() for c in re.split(r'(?<=[.!?;\n])\s+', cleaned_text) if c.strip()]
-            
-            for c in raw_clauses:
-                c_clean = c.strip()
-                if not c_clean or len(c_clean.split()) < 3:
-                    continue
-
-                norm = re.sub(r'[^\w\s]', '', c_clean.lower()).strip()
-                if not norm or norm in seen_norm:
-                    continue
-                seen_norm.add(norm)
-
-                c_words = set(re.findall(r'\b[a-z0-9]+\b', norm))
-                match_count = sum(1 for qw in q_words if qw in c_words)
-
-                all_clauses.append({
-                    "clause": c_clean,
-                    "norm": norm,
-                    "words": c_words,
-                    "match_count": match_count,
-                    "chunk_index": chunk_idx
-                })
-
-        if not all_clauses:
-            return "I couldn't find information about this in the uploaded documents."
-
-        # Filter clauses matching query terms
-        matching_clauses = [cs for cs in all_clauses if cs["match_count"] > 0]
-        if not matching_clauses:
-            return "I couldn't find information about this in the uploaded documents."
-
-        is_sequence_query = any(k in q_lower for k in ["sequence", "timeline", "events", "chronological", "steps", "after", "from "])
-
-        if is_sequence_query:
-            # Multi-step sequence query: sort matching clauses chronologically by chunk index
-            matching_clauses.sort(key=lambda x: x["chunk_index"])
-            selected = []
-            for cs in matching_clauses[:5]:
-                clause_text = cs["clause"]
-                if not re.search(r'[.!?]$', clause_text):
-                    clause_text += "."
-                if clause_text not in selected:
-                    selected.append(clause_text)
-            return " ".join(selected).strip()
+        if settings.EVIDENCE_SELECTION_ENABLED:
+            evidence_chunks = evidence_selector.select_evidence(question, context_chunks)
+            if not evidence_chunks:
+                return "I couldn't find information about this in the uploaded documents."
         else:
-            # Single-topic focused query: prioritize clauses containing primary query entities from the best matching chunk
-            key_entities = [w for w in q_words if w not in ["did", "happen", "does", "what", "who", "how", "action", "actions"]]
-            
-            focused_clauses = []
-            if key_entities:
-                for cs in matching_clauses:
-                    if any(ke in cs["words"] for ke in key_entities):
-                        focused_clauses.append(cs)
+            evidence_chunks = context_chunks
 
-            if not focused_clauses:
-                focused_clauses = matching_clauses
+        sentences = []
+        for chunk in evidence_chunks:
+            text = chunk.get("chunk_text", "").strip()
+            if text:
+                cleaned_text = context_compressor._clean_chunk_boundaries(text)
+                sents = [s.strip() for s in re.split(r'(?<=[.!?;\n])\s+', cleaned_text) if s.strip()]
+                for s in sents:
+                    clean_s = evidence_selector._clean_header_noise(s)
+                    if clean_s and clean_s not in sentences:
+                        if not re.search(r'[.!?]$', clean_s):
+                            clean_s += "."
+                        sentences.append(clean_s)
 
-            focused_clauses.sort(key=lambda x: (x["match_count"], -x["chunk_index"]), reverse=True)
-            
-            best_chunk_idx = focused_clauses[0]["chunk_index"]
-            best_chunk_clauses = [cs for cs in focused_clauses if cs["chunk_index"] == best_chunk_idx]
-            
-            selected = []
-            for cs in best_chunk_clauses[:3]:
-                clause_text = cs["clause"]
-                if not re.search(r'[.!?]$', clause_text):
-                    clause_text += "."
-                if clause_text not in selected:
-                    selected.append(clause_text)
-            return " ".join(selected).strip()
+        if not sentences:
+            return "I couldn't find information about this in the uploaded documents."
+
+        return " ".join(sentences).strip()
+
 
 llm_service = LLMService()

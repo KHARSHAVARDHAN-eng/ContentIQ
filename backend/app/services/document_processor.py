@@ -14,11 +14,10 @@ from app.models.document_page import DocumentPage
 from app.models.document_chunk import DocumentChunk
 from app.models.chunk_embedding import ChunkEmbedding
 from app.core.config import settings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.services.embedding_service import embedding_service
 from app.services.adaptive_chunking import adaptive_chunker
 
-def process_document_task(document_id: int):
+def process_document_task(document_id: int, collection_name: str = "document_chunks"):
     db = SessionLocal()
     try:
         doc = db.query(Document).filter(Document.id == document_id).first()
@@ -195,10 +194,10 @@ def process_document_task(document_id: int):
                 print("START indexing")
 
                 from app.services.vector_store import vector_store
-                vector_store.create_collection()
+                vector_store.create_collection(collection_name=collection_name)
                 
                 # Prevent duplication if indexing is rerun
-                vector_store.delete_document_vectors(doc.id)
+                vector_store.delete_document_vectors(doc.id, collection_name=collection_name)
 
                 points_data = []
                 for chunk, vector in zip(chunks_to_insert, vectors):
@@ -211,7 +210,7 @@ def process_document_task(document_id: int):
                     })
 
                 if points_data:
-                    vector_store.upsert_chunks_bulk(points_data)
+                    vector_store.upsert_chunks_bulk(points_data, collection_name=collection_name)
 
                 print("START status update")
                 doc.status = "INDEXED"
